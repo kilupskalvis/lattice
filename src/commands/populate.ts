@@ -10,6 +10,7 @@ import type { LatticeConfig } from "../types/config.ts";
  * @param _config - Lattice configuration (reserved for future use)
  * @returns A complete instruction string for the coding agent
  */
+// @lattice:flow populate
 function executePopulate(db: Database, _config: LatticeConfig): string {
 	const sections: string[] = [];
 
