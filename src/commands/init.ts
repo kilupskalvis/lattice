@@ -84,23 +84,11 @@ function generateToml(languages: readonly string[], root: string): string {
 	];
 
 	if (languages.includes("python")) {
-		lines.push(
-			"[python]",
-			`source_roots = ["${root}"]`,
-			'test_paths = ["tests"]',
-			"frameworks = []",
-			"",
-		);
+		lines.push("[python]", `source_roots = ["${root}"]`, 'test_paths = ["tests"]', "");
 	}
 
 	if (languages.includes("typescript")) {
-		lines.push(
-			"[typescript]",
-			`source_roots = ["${root}"]`,
-			'test_paths = ["tests"]',
-			"frameworks = []",
-			"",
-		);
+		lines.push("[typescript]", `source_roots = ["${root}"]`, 'test_paths = ["tests"]', "");
 	}
 
 	lines.push("[lint]", "strict = false", "ignore = []", "");

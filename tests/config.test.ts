@@ -10,7 +10,6 @@ describe("parseConfig", () => {
 		const config = unwrap(result);
 		expect(config.languages).toEqual(["python"]);
 		expect(config.root).toBe("src");
-		expect(config.python?.frameworks).toEqual(["fastapi"]);
 	});
 
 	it("applies defaults for missing optional fields", async () => {

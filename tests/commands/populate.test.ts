@@ -24,7 +24,7 @@ const config: LatticeConfig = {
 	languages: ["python"],
 	root: ".",
 	exclude: [],
-	python: { sourceRoots: ["."], testPaths: ["tests"], frameworks: ["fastapi"] },
+	python: { sourceRoots: ["."], testPaths: ["tests"] },
 	typescript: undefined,
 	lint: { strict: false, ignore: [] },
 };

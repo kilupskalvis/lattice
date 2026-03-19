@@ -24,7 +24,7 @@ const defaultConfig: LatticeConfig = {
 	languages: ["python"],
 	root: ".",
 	exclude: [],
-	python: { sourceRoots: ["."], testPaths: ["tests"], frameworks: ["fastapi"] },
+	python: { sourceRoots: ["."], testPaths: ["tests"] },
 	typescript: undefined,
 	lint: { strict: false, ignore: [] },
 };
@@ -37,24 +37,6 @@ beforeEach(() => {
 
 afterEach(() => {
 	db.close();
-});
-
-describe("executeLint — missing tags", () => {
-	it("reports missing @lattice:flow on route handler", () => {
-		insertNodes(db, [
-			makeNode({
-				id: "src/routes.py::handler",
-				name: "handler",
-				metadata: { route: "POST /api/checkout" },
-			}),
-		]);
-
-		const result = executeLint(db, defaultConfig);
-		const flowErrors = result.issues.filter(
-			(i) => i.severity === "error" && i.message.includes("flow"),
-		);
-		expect(flowErrors.length).toBeGreaterThan(0);
-	});
 });
 
 describe("executeLint — invalid tags", () => {

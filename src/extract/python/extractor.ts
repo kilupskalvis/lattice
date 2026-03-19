@@ -4,7 +4,6 @@ import type { Extractor } from "../extractor.ts";
 import { createParser, type TreeSitterParser } from "../parser.ts";
 import { parseTags } from "../tags.ts";
 import { extractPythonCalls } from "./calls.ts";
-import { detectPythonFrameworks } from "./frameworks.ts";
 import { extractPythonSymbols } from "./symbols.ts";
 
 /**
@@ -76,21 +75,6 @@ async function extractPython(
 
 	// 3. Parse lattice tags from comments above functions
 	const tags = extractTagsFromSource(source, filePath, nodes);
-
-	// 4. Detect framework patterns and attach route metadata to nodes
-	const frameworks = detectPythonFrameworks(tree, filePath);
-	for (const detection of frameworks) {
-		if (detection.route) {
-			const node = nodes.find((n) => n.name === detection.functionName);
-			if (node) {
-				const idx = nodes.indexOf(node);
-				nodes[idx] = {
-					...node,
-					metadata: { ...node.metadata, route: detection.route },
-				};
-			}
-		}
-	}
 
 	return { nodes, edges, tags, unresolved: [] };
 }

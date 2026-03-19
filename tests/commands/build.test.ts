@@ -23,7 +23,6 @@ describe("executeBuild", () => {
 			python: {
 				sourceRoots: ["src"],
 				testPaths: ["tests"],
-				frameworks: ["fastapi"],
 			},
 			typescript: undefined,
 			lint: { strict: false, ignore: [] },
@@ -46,7 +45,7 @@ describe("executeBuild", () => {
 			languages: ["python"],
 			root: "src",
 			exclude: [],
-			python: { sourceRoots: ["src"], testPaths: ["tests"], frameworks: [] },
+			python: { sourceRoots: ["src"], testPaths: ["tests"] },
 			typescript: undefined,
 			lint: { strict: false, ignore: [] },
 		});
@@ -63,7 +62,7 @@ describe("executeBuild", () => {
 			languages: ["python"],
 			root: "src",
 			exclude: [],
-			python: { sourceRoots: ["src"], testPaths: ["tests"], frameworks: [] },
+			python: { sourceRoots: ["src"], testPaths: ["tests"] },
 			typescript: undefined,
 			lint: { strict: false, ignore: [] },
 		});
@@ -81,7 +80,7 @@ describe("executeBuild", () => {
 			languages: ["python"],
 			root: "src",
 			exclude: [],
-			python: { sourceRoots: ["src"], testPaths: ["tests"], frameworks: [] },
+			python: { sourceRoots: ["src"], testPaths: ["tests"] },
 			typescript: undefined,
 			lint: { strict: false, ignore: [] },
 		});
@@ -112,7 +111,6 @@ describe("executeBuild", () => {
 			python: {
 				sourceRoots: ["src"] as readonly string[],
 				testPaths: ["tests"] as readonly string[],
-				frameworks: [] as readonly string[],
 			},
 			typescript: undefined,
 			lint: {

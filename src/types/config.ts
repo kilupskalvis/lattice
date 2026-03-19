@@ -2,7 +2,6 @@
 type PythonConfig = {
 	readonly sourceRoots: readonly string[];
 	readonly testPaths: readonly string[];
-	readonly frameworks: readonly string[];
 };
 
 /** Configuration for a TypeScript language section. */
@@ -10,7 +9,6 @@ type TypeScriptConfig = {
 	readonly sourceRoots: readonly string[];
 	readonly testPaths: readonly string[];
 	readonly tsconfig: string | undefined;
-	readonly frameworks: readonly string[];
 };
 
 /** Lint-specific configuration. */

@@ -14,7 +14,6 @@ import type { LintIssue, LintResult } from "../types/lint.ts";
 function executeLint(db: Database, _config: LatticeConfig): LintResult {
 	const issues: LintIssue[] = [];
 
-	checkMissingFlowTags(db, issues);
 	checkInvalidTags(db, issues);
 	checkTypos(db, issues);
 	checkOrphanedEvents(db, issues);
@@ -24,28 +23,6 @@ function executeLint(db: Database, _config: LatticeConfig): LintResult {
 	const unresolvedCount = countUnresolved(db);
 
 	return { issues, coverage, unresolvedCount };
-}
-
-/** Checks for route handlers without @lattice:flow tags. */
-function checkMissingFlowTags(db: Database, issues: LintIssue[]): void {
-	// Nodes with route metadata (detected by framework extractors) but no flow tag
-	const rows = db
-		.query(
-			`SELECT n.id, n.name, n.file, n.line_start FROM nodes n
-			WHERE n.metadata IS NOT NULL AND n.metadata LIKE '%"route"%'
-			AND NOT EXISTS (SELECT 1 FROM tags t WHERE t.node_id = n.id AND t.kind = 'flow')`,
-		)
-		.all() as { id: string; name: string; file: string; line_start: number }[];
-
-	for (const row of rows) {
-		issues.push({
-			severity: "error",
-			file: row.file,
-			line: row.line_start,
-			symbol: row.name,
-			message: `Route handler missing @lattice:flow tag`,
-		});
-	}
 }
 
 /** Checks for tags placed on invalid node kinds (e.g., flow tag on a class). */
@@ -193,23 +170,16 @@ function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
 	}
 }
 
-/** Computes tag coverage: how many detected entry points are tagged vs total. */
+/** Computes tag coverage: how many tags exist vs total functions. */
 function computeCoverage(db: Database): { tagged: number; total: number } {
-	const total = db
-		.query(
-			"SELECT COUNT(*) as c FROM nodes WHERE metadata IS NOT NULL AND metadata LIKE '%\"route\"%'",
-		)
-		.get() as { c: number };
-
-	const tagged = db
-		.query(
-			`SELECT COUNT(*) as c FROM nodes n
-			WHERE n.metadata IS NOT NULL AND n.metadata LIKE '%"route"%'
-			AND EXISTS (SELECT 1 FROM tags t WHERE t.node_id = n.id AND t.kind = 'flow')`,
-		)
-		.get() as { c: number };
-
-	return { tagged: tagged.c, total: total.c };
+	const total = (
+		db.query("SELECT COUNT(*) as c FROM nodes WHERE kind IN ('function', 'method')").get() as {
+			c: number;
+		}
+	).c;
+	const tagged = (db.query("SELECT COUNT(DISTINCT node_id) as c FROM tags").get() as { c: number })
+		.c;
+	return { tagged, total };
 }
 
 /** Counts unresolved references in the database. */

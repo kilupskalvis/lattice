@@ -56,7 +56,6 @@ function parsePythonSection(raw: unknown): PythonConfig {
 	return {
 		sourceRoots: isStringArray(section.source_roots) ? section.source_roots : ["."],
 		testPaths: isStringArray(section.test_paths) ? section.test_paths : ["tests"],
-		frameworks: isStringArray(section.frameworks) ? section.frameworks : [],
 	};
 }
 
@@ -67,7 +66,6 @@ function parseTypeScriptSection(raw: unknown): TypeScriptConfig {
 		sourceRoots: isStringArray(section.source_roots) ? section.source_roots : ["."],
 		testPaths: isStringArray(section.test_paths) ? section.test_paths : ["__tests__"],
 		tsconfig: typeof section.tsconfig === "string" ? section.tsconfig : undefined,
-		frameworks: isStringArray(section.frameworks) ? section.frameworks : [],
 	};
 }
 

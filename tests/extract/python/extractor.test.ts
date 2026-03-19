@@ -62,7 +62,7 @@ def emit_order(order_id):
 		expect(result.tags[0]?.value).toBe("order.created");
 	});
 
-	it("extracts flow tags with route metadata", async () => {
+	it("extracts flow tags on decorated functions", async () => {
 		const source = `# @lattice:flow checkout
 @app.post("/api/checkout")
 def handle_checkout(req):
@@ -73,9 +73,6 @@ def handle_checkout(req):
 		const flowTag = result.tags.find((t) => t.kind === "flow");
 		expect(flowTag).toBeDefined();
 		expect(flowTag?.value).toBe("checkout");
-
-		const node = result.nodes.find((n) => n.name === "handle_checkout");
-		expect(node?.metadata?.route).toBe("POST /api/checkout");
 	});
 
 	it("returns empty result for empty file", async () => {

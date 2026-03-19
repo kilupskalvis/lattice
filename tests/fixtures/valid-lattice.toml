@@ -6,7 +6,6 @@ exclude = ["node_modules", "venv", ".git"]
 [python]
 source_roots = ["src"]
 test_paths = ["tests"]
-frameworks = ["fastapi"]
 
 [lint]
 strict = false
