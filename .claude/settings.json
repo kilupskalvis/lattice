@@ -1,0 +1,14 @@
+{
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "Grep",
+				"command": "echo \"STOP: Before using Grep, check if Lattice can answer your question faster:\n  lattice context <symbol>  - function neighborhood (callers, callees, flows)\n  lattice callers <symbol>  - what calls this function\n  lattice flow <name>       - full call tree for a business flow\n  lattice impact <symbol>   - what breaks if you change this\nGrep is appropriate for: string literals, config values, error messages, TODOs.\nGrep is NOT appropriate for: finding function definitions, understanding call chains, tracing flows.\""
+			},
+			{
+				"matcher": "Glob",
+				"command": "echo \"STOP: Before using Glob, check if Lattice can answer your question faster:\n  lattice overview          - all flows, boundaries, events in the project\n  lattice flows             - all entry points\n  lattice boundaries        - all external system calls\n  lattice context <symbol>  - where a symbol lives and what it connects to\nGlob is appropriate for: config files, assets, non-code files.\nGlob is NOT appropriate for: finding source files or function locations.\""
+			}
+		]
+	}
+}
