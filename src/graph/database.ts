@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS nodes (
 );
 
 CREATE TABLE IF NOT EXISTS edges (
-	source_id   TEXT NOT NULL REFERENCES nodes(id),
-	target_id   TEXT NOT NULL REFERENCES nodes(id),
+	source_id   TEXT NOT NULL,
+	target_id   TEXT NOT NULL,
 	kind        TEXT NOT NULL,
 	certainty   TEXT DEFAULT 'certain',
 	PRIMARY KEY (source_id, target_id, kind)
