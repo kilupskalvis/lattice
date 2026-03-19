@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { executeBuild } from "./commands/build.ts";
 import { executeInit } from "./commands/init.ts";
+import { executeLint } from "./commands/lint.ts";
 import { parseConfig } from "./config.ts";
 import { checkSchemaVersion } from "./graph/database.ts";
 import {
@@ -96,6 +97,74 @@ program
 			);
 		} else {
 			console.error(result.error);
+			process.exit(1);
+		}
+	});
+
+// --- lint ---
+program
+	.command("lint")
+	.description("Validate tags: syntax, typos, orphans, missing tags")
+	.option("--strict", "Treat warnings as errors")
+	.option("--unresolved", "Show detailed unresolved references")
+	.action((opts: { strict?: boolean; unresolved?: boolean }) => {
+		const cwd = process.cwd();
+		const configResult = loadConfig(cwd);
+		if (!isOk(configResult)) {
+			console.error(configResult.error);
+			process.exit(1);
+		}
+		const config = unwrap(configResult);
+		const db = openDb(cwd);
+		const result = executeLint(db, config);
+
+		// Print issues
+		const errors = result.issues.filter((i) => i.severity === "error");
+		const warnings = result.issues.filter((i) => i.severity === "warning");
+
+		if (errors.length > 0) {
+			console.log("Errors (must fix):");
+			for (const issue of errors) {
+				console.log(`  ${issue.file}:${issue.line}  ${issue.symbol}`);
+				console.log(`    ${issue.message}`);
+				console.log();
+			}
+		}
+
+		if (warnings.length > 0) {
+			console.log("Warnings (should fix):");
+			for (const issue of warnings) {
+				console.log(`  ${issue.file}:${issue.line}  ${issue.symbol}`);
+				console.log(`    ${issue.message}`);
+				console.log();
+			}
+		}
+
+		// Coverage info
+		console.log(
+			`Info:\n  Coverage: ${result.coverage.tagged}/${result.coverage.total} entry points tagged (${result.coverage.total > 0 ? Math.round((result.coverage.tagged / result.coverage.total) * 100) : 0}%)`,
+		);
+		console.log(`  Unresolved references: ${result.unresolvedCount}`);
+
+		// Unresolved details
+		if (opts.unresolved) {
+			const refs = db
+				.query("SELECT file, line, expression, reason FROM unresolved ORDER BY file, line")
+				.all() as { file: string; line: number; expression: string; reason: string }[];
+			if (refs.length > 0) {
+				console.log("\nUnresolved references:");
+				for (const ref of refs) {
+					console.log(`  ${ref.file}:${ref.line}  ${ref.expression} (${ref.reason})`);
+				}
+			}
+		}
+
+		db.close();
+
+		// Exit code
+		const hasErrors = errors.length > 0;
+		const hasWarnings = warnings.length > 0;
+		if (hasErrors || (opts.strict && hasWarnings)) {
 			process.exit(1);
 		}
 	});
