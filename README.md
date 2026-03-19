@@ -81,18 +81,26 @@ bun run build          # compiles to ./lattice binary
 ## Quick Start
 
 ```bash
-# Initialize Lattice in your project
+# 1. Initialize Lattice in your project
 cd your-project
 lattice init                        # creates .lattice/ and lattice.toml
+# Edit lattice.toml to set the correct root, frameworks, etc.
 
-# Build the knowledge graph
-lattice build                       # parses all files, builds SQLite graph
+# 2. Build the structural graph
+lattice build                       # parses all files into a knowledge graph
 
-# Query the graph
+# 3. Tag your codebase (give this output to your coding agent)
+lattice populate                    # outputs tag spec, examples, and workflow
+# The agent reads the instructions, adds @lattice: tags to your source code,
+# then validates with:
+lattice build && lattice lint       # rebuild and check for errors
+
+# 4. Now the agent can navigate the codebase through the graph
 lattice overview                    # project landscape: flows, boundaries, events
 lattice flow checkout               # full call tree from entry point to boundaries
 lattice context charge              # callers, callees, flows, boundary info
 lattice impact charge               # what breaks if you change this function
+lattice code charge                 # read just the function source to edit
 ```
 
 ## Tags
