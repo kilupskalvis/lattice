@@ -16,6 +16,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/lattice-graph"><img src="https://img.shields.io/npm/v/lattice-graph" alt="npm"></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/runtime-Bun-f472b6" alt="Bun"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>
@@ -71,7 +72,7 @@ bunx lattice-graph build
 ### From source
 
 ```bash
-git clone https://github.com/your-org/lattice.git
+git clone https://github.com/kilupskalvis/lattice.git
 cd lattice
 bun install
 bun run build          # compiles to ./lattice binary
@@ -377,7 +378,7 @@ The hooks remind the agent to try Lattice before falling back to traditional too
 ```bash
 bun install                         # install dependencies + git hooks
 bun run dev                         # run CLI in development mode
-bun run test                        # run 182 tests
+bun run test                        # run 187 tests
 bun run lint                        # biome check
 bun run typecheck                   # tsc --noEmit
 bun run check                       # lint + typecheck + tests
