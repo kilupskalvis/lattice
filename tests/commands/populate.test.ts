@@ -40,50 +40,44 @@ afterEach(() => {
 });
 
 describe("executePopulate", () => {
-	it("includes the full tag specification", () => {
+	it("includes tag spec with all four tags", () => {
 		const output = executePopulate(db, config);
 		expect(output).toContain("@lattice:flow");
 		expect(output).toContain("@lattice:boundary");
 		expect(output).toContain("@lattice:emits");
 		expect(output).toContain("@lattice:handles");
-		expect(output).toContain("kebab-case");
 	});
 
-	it("includes project structure with files and key functions", () => {
+	it("includes few-shot examples in Python and TypeScript", () => {
+		const output = executePopulate(db, config);
+		expect(output).toContain("def handle_checkout");
+		expect(output).toContain("router.post");
+		expect(output).toContain("@shared_task");
+	});
+
+	it("includes project summary with stats", () => {
 		insertNodes(db, [
-			makeNode({
-				id: "src/routes.py::handler",
-				name: "handler",
-				file: "src/routes.py",
-				lineStart: 12,
-			}),
-			makeNode({ id: "src/pay.py::charge", name: "charge", file: "src/pay.py" }),
+			makeNode({ id: "a::foo", name: "foo", file: "a.py" }),
+			makeNode({ id: "b::bar", name: "bar", file: "b.py" }),
 		]);
 
 		const output = executePopulate(db, config);
-		expect(output).toContain("Project Structure");
-		expect(output).toContain("src/routes.py");
-		expect(output).toContain("src/pay.py");
-		expect(output).toContain("handler");
-		expect(output).toContain("charge");
+		expect(output).toContain("2 files");
+		expect(output).toContain("2 symbols");
 	});
 
 	it("shows existing tags when present", () => {
-		insertNodes(db, [
-			makeNode({ id: "src/routes.py::handler", name: "handler", file: "src/routes.py" }),
-		]);
+		insertNodes(db, [makeNode({ id: "src/routes.py::handler", name: "handler" })]);
 		insertTags(db, [{ nodeId: "src/routes.py::handler", kind: "flow", value: "checkout" }]);
 
 		const output = executePopulate(db, config);
-		expect(output).toContain("Existing Tags");
+		expect(output).toContain("Already Tagged");
 		expect(output).toContain("@lattice:flow checkout");
 	});
 
-	it("includes guidelines for tagging approach", () => {
+	it("says no tags exist when empty", () => {
 		const output = executePopulate(db, config);
-		expect(output).toContain("Guidelines");
-		expect(output).toContain("entry points");
-		expect(output).toContain("external boundaries");
+		expect(output).toContain("No tags exist yet");
 	});
 
 	it("includes validation instructions", () => {
@@ -91,11 +85,5 @@ describe("executePopulate", () => {
 		expect(output).toContain("lattice build");
 		expect(output).toContain("lattice lint");
 		expect(output).toContain("lattice overview");
-	});
-
-	it("works on empty database", () => {
-		const output = executePopulate(db, config);
-		expect(output).toContain("@lattice:flow");
-		expect(output).toContain("Files (0)");
 	});
 });

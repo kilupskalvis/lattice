@@ -3,8 +3,8 @@ import type { LatticeConfig } from "../types/config.ts";
 
 /**
  * Generates a structured prompt that instructs a coding agent to tag the codebase.
- * Provides the tag spec, the project's structural overview from the graph,
- * and lets the agent decide what needs tagging based on understanding.
+ * Provides the tag spec with few-shot examples, a brief project summary,
+ * and existing tags if any. The agent reads the code and decides what to tag.
  *
  * @param db - An open Database handle with a built graph
  * @param _config - Lattice configuration (reserved for future use)
@@ -13,171 +13,157 @@ import type { LatticeConfig } from "../types/config.ts";
 function executePopulate(db: Database, _config: LatticeConfig): string {
 	const sections: string[] = [];
 
+	sections.push(taskSection());
 	sections.push(tagSpecSection());
-	sections.push(projectStructureSection(db));
-	sections.push(guidelinesSection());
+	sections.push(examplesSection());
+	sections.push(projectSummarySection(db));
 	sections.push(validationSection());
 
 	return sections.join("\n\n");
 }
 
-/** Outputs the full tag specification so the agent knows exactly what syntax to use. */
+/** Describes the task the agent needs to perform. */
+function taskSection(): string {
+	return `## Task
+
+Add Lattice tags to this codebase. Lattice builds a knowledge graph from these tags so coding agents can navigate the code through graph queries instead of grep and file reading.
+
+Your job: read the source code, identify entry points, external boundaries, and event connections, then add the appropriate tags as comments above the relevant functions.`;
+}
+
+/** Outputs the tag spec — what each tag means and the syntax rules. */
 function tagSpecSection(): string {
-	return `## Lattice Tag Specification
+	return `## Tags
 
-Place tags in comments directly above function definitions. No blank lines between the tag and the function definition.
+Four tags, placed in comments directly above function definitions:
 
-### Tags
+- \`@lattice:flow <name>\` — Flow entry point. Where execution begins for a business operation. Route handlers, CLI commands, cron jobs, queue consumers.
+- \`@lattice:boundary <system>\` — External boundary. Where code leaves the codebase. API calls, database queries, cache operations, third-party SDKs.
+- \`@lattice:emits <event>\` — Event emission. Publishes to a queue, event bus, or notification system.
+- \`@lattice:handles <event>\` — Event consumption. Subscribes to or processes events. Must match a corresponding emits tag.
 
-\`@lattice:flow <name>\` — Marks a business flow entry point.
-Place on: route handlers, CLI command handlers, cron jobs, queue consumers, event listeners.
-The flow name should describe the business operation (e.g., "checkout", "user-registration").
-All functions reachable from the entry point through the call graph are automatically members of the flow.
+Rules:
+- Place the tag comment directly above the function definition, no blank lines between
+- Names are kebab-case: \`checkout\`, \`user-registration\`, \`order.created\`, \`aws-s3\`
+- Multiple values: \`# @lattice:flow checkout, payment\`
+- Do NOT tag intermediate functions — only entry points and boundaries. Everything in between is derived from the call graph automatically.`;
+}
 
-\`@lattice:boundary <system>\` — Marks where code exits the codebase.
-Place on: functions that call external APIs, databases, file systems, third-party services.
-The system name should identify the external dependency (e.g., "stripe", "postgres", "redis").
+/** Few-shot examples showing correct tagging across different scenarios. */
+function examplesSection(): string {
+	return `## Examples
 
-\`@lattice:emits <event>\` — Marks event/message emission.
-Place on: functions that publish to message queues, event buses, or notification systems.
-Use the exact event name as it appears in the publish call (e.g., "order.created").
+### Python — FastAPI route with boundary and events
 
-\`@lattice:handles <event>\` — Marks event/message consumption.
-Place on: functions that subscribe to or consume events/messages.
-Must match a corresponding emits tag for the graph to connect them.
-
-### Syntax Rules
-
-- Names are kebab-case: lowercase letters, numbers, hyphens, and dots
-- Multiple values per tag: \`# @lattice:flow checkout, payment\`
-- Works with any comment style: \`#\`, \`//\`, \`/* */\`, \`--\`
-
-### What NOT to Tag
-
-- Intermediate functions in a flow — derived automatically from the call graph
-- Callers and callees — derived from the AST
-- Types, interfaces, data models — derived from the AST
-- Internal utilities — they appear in the graph through call edges
-
-### Examples
-
-Python:
 \`\`\`python
 # @lattice:flow checkout
 @app.post("/api/checkout")
 def handle_checkout(req):
-    order = create_order(req)
+    order = create_order(req)       # no tag — derived from call graph
     return order
+
+def create_order(req):              # no tag — derived from call graph
+    charge(req.amount, req.token)
+    save_order(req)
+    emit_order_created(req.order_id)
+
+# @lattice:boundary stripe
+def charge(amount, token):
+    return stripe.charges.create(amount=amount, source=token)
+
+# @lattice:boundary postgres
+def save_order(req):
+    db.execute("INSERT INTO orders ...")
+
+# @lattice:emits order.created
+def emit_order_created(order_id):
+    queue.publish("order.created", {"order_id": order_id})
+
+# @lattice:handles order.created
+def send_confirmation(event):
+    sendgrid.send(event.order_id)
 \`\`\`
 
-TypeScript:
+### TypeScript — Express route with database boundary
+
 \`\`\`typescript
-// @lattice:boundary stripe
-export async function charge(amount: number): Promise<Result> {
-  return stripe.charges.create({ amount });
+// @lattice:flow user-registration
+router.post("/api/users", async (req, res) => {
+  const user = await createUser(req.body);
+  res.json(user);
+});
+
+// @lattice:boundary postgres
+async function createUser(data: CreateUserInput): Promise<User> {
+  return db.query("INSERT INTO users ...").run(data);
 }
+\`\`\`
+
+### Python — Celery task as entry point
+
+\`\`\`python
+# @lattice:flow invoice-generation
+@shared_task
+def generate_invoice(order_id):
+    order = fetch_order(order_id)
+    pdf = render_invoice(order)
+    send_invoice_email(order, pdf)
+
+# @lattice:boundary s3
+def render_invoice(order):
+    pdf = create_pdf(order)
+    s3.upload(f"invoices/{order.id}.pdf", pdf)
+    return pdf
 \`\`\``;
 }
 
-/** Outputs the project's structural overview so the agent understands the codebase layout. */
-function projectStructureSection(db: Database): string {
-	const lines: string[] = ["## Project Structure", ""];
+/** Brief project summary from the graph — just enough context, not a file listing. */
+function projectSummarySection(db: Database): string {
+	const lines: string[] = ["## This Project", ""];
 
-	// File summary
-	const files = db.query("SELECT DISTINCT file FROM nodes ORDER BY file").all() as {
-		file: string;
-	}[];
-	lines.push(`### Files (${files.length})`);
-	lines.push("");
-	for (const f of files) {
-		const nodeCount = (
-			db.query("SELECT COUNT(*) as c FROM nodes WHERE file = ?").get(f.file) as { c: number }
-		).c;
-		lines.push(`- \`${f.file}\` (${nodeCount} symbols)`);
-	}
+	// Summary stats
+	const fileCount = (db.query("SELECT COUNT(DISTINCT file) as c FROM nodes").get() as { c: number })
+		.c;
+	const nodeCount = (db.query("SELECT COUNT(*) as c FROM nodes").get() as { c: number }).c;
+	const edgeCount = (db.query("SELECT COUNT(*) as c FROM edges").get() as { c: number }).c;
 
-	// Top-level functions with most connections (hubs)
-	const hubs = db
-		.query(
-			`SELECT n.id, n.name, n.file, n.line_start,
-				(SELECT COUNT(*) FROM edges WHERE source_id = n.id AND kind = 'calls') as outgoing,
-				(SELECT COUNT(*) FROM edges WHERE target_id = n.id AND kind = 'calls') as incoming
-			FROM nodes n
-			WHERE n.kind IN ('function', 'method')
-			ORDER BY (outgoing + incoming) DESC
-			LIMIT 15`,
-		)
-		.all() as {
-		id: string;
-		name: string;
-		file: string;
-		line_start: number;
-		outgoing: number;
-		incoming: number;
-	}[];
+	lines.push(`${fileCount} files, ${nodeCount} symbols, ${edgeCount} call edges in the graph.`);
 
-	if (hubs.length > 0) {
-		lines.push("");
-		lines.push("### Key Functions (most connected)");
-		lines.push("");
-		for (const hub of hubs) {
-			lines.push(
-				`- \`${hub.name}\` (${hub.file}:${hub.line_start}) — ${hub.incoming} callers, ${hub.outgoing} callees`,
-			);
-		}
-	}
-
-	// Existing tags (if any)
+	// Existing tags
 	const existingTags = db
 		.query("SELECT kind, value, node_id FROM tags ORDER BY kind, value")
-		.all() as {
-		kind: string;
-		value: string;
-		node_id: string;
-	}[];
+		.all() as { kind: string; value: string; node_id: string }[];
+
 	if (existingTags.length > 0) {
 		lines.push("");
-		lines.push("### Existing Tags");
+		lines.push("### Already Tagged");
 		lines.push("");
 		for (const tag of existingTags) {
 			lines.push(`- \`@lattice:${tag.kind} ${tag.value}\` on \`${tag.node_id}\``);
 		}
+		lines.push("");
+		lines.push("Review these existing tags and add any that are missing.");
+	} else {
+		lines.push("");
+		lines.push("No tags exist yet. Read the source files and add tags where appropriate.");
 	}
 
 	return lines.join("\n");
 }
 
-/** Provides guidelines for the agent on how to approach tagging. */
-function guidelinesSection(): string {
-	return `## Guidelines
-
-1. **Start with entry points.** Identify the main ways code gets executed — HTTP handlers, CLI commands, cron jobs, queue consumers — and tag them with \`@lattice:flow\`.
-
-2. **Tag external boundaries.** Find functions that call external systems (APIs, databases, caches, message queues) and tag them with \`@lattice:boundary\`.
-
-3. **Tag event connections.** If the codebase uses event-driven patterns (publish/subscribe, message queues), tag the publishers with \`@lattice:emits\` and consumers with \`@lattice:handles\`.
-
-4. **Use domain names.** Flow names should reflect business concepts ("checkout", "user-registration"), not function names ("handle-post-request").
-
-5. **Don't over-tag.** Only tag entry points and boundaries. Everything in between is derived from the call graph. If a function is called by a tagged entry point, it's automatically part of that flow.
-
-6. **Read the function before tagging.** Understand what it does and what role it plays before deciding on a tag and name.`;
-}
-
-/** Outputs validation instructions for after tagging. */
+/** Validation instructions for after tagging. */
 function validationSection(): string {
-	return `## After Tagging
+	return `## Validation
 
-Rebuild the graph and validate:
+After adding tags, rebuild and check:
 
 \`\`\`bash
 lattice build && lattice lint
 \`\`\`
 
-Fix any lint errors reported, then rebuild and lint again until clean.
-
-Use \`lattice overview\` to verify the tagged flows, boundaries, and events look correct.
-Use \`lattice flow <name>\` to verify each flow's call tree makes sense.`;
+Then verify with:
+- \`lattice overview\` — check that flows, boundaries, and events look correct
+- \`lattice flow <name>\` — check that each flow's call tree makes sense`;
 }
 
 export { executePopulate };
