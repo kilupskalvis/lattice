@@ -1,2 +1,6 @@
-node_modules\ndist\n.lattice
+node_modules
+dist
+.lattice
 lattice
+.claude/projects
+.lattice_specs
