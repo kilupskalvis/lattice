@@ -42,11 +42,35 @@ type TreeSitterNode = {
 let initialized = false;
 const languageCache = new Map<string, TreeSitterLanguage>();
 
-/** Resolves the WASM file path for a language grammar relative to this package. */
+/**
+ * Resolves the WASM file path for a language grammar.
+ * Tries multiple locations to support both dev and compiled binary modes:
+ * 1. Relative to this source file (dev: bun src/main.ts)
+ * 2. Relative to the compiled binary (binary: ./lattice)
+ * 3. Relative to CWD (when node_modules exists in working dir)
+ */
 function grammarPath(language: string): string {
-	// resolve() is needed because CWD may differ from the package root
+	const { existsSync } = require("node:fs");
+	const { dirname, join } = require("node:path");
+	const filename = `tree-sitter-${language}.wasm`;
+	const subpath = `node_modules/tree-sitter-wasms/out/${filename}`;
+
+	// Try relative to this source file (dev mode)
 	const packageRoot = new URL("../../", import.meta.url).pathname;
-	return `${packageRoot}node_modules/tree-sitter-wasms/out/tree-sitter-${language}.wasm`;
+	const devPath = join(packageRoot, subpath);
+	if (existsSync(devPath)) return devPath;
+
+	// Try relative to the binary's location (compiled mode)
+	const binDir = dirname(process.execPath);
+	const binPath = join(binDir, subpath);
+	if (existsSync(binPath)) return binPath;
+
+	// Try relative to CWD
+	const cwdPath = join(process.cwd(), subpath);
+	if (existsSync(cwdPath)) return cwdPath;
+
+	// Fall back — will produce a clear error
+	return devPath;
 }
 
 /**
