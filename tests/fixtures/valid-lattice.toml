@@ -1,0 +1,16 @@
+[project]
+languages = ["python"]
+root = "src"
+exclude = ["node_modules", "venv", ".git"]
+
+[python]
+source_roots = ["src"]
+test_paths = ["tests"]
+frameworks = ["fastapi"]
+
+[lint]
+strict = false
+ignore = ["scripts/**"]
+
+[lint.boundaries]
+packages = ["stripe", "psycopg2"]
