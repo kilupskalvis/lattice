@@ -1,3 +1,4 @@
+import type { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { Extractor } from "../extract/extractor.ts";
@@ -100,6 +101,9 @@ async function executeBuild(
 			totalTags += result.tags.length;
 		}
 
+		// Cross-file resolution: resolve uncertain edges by matching callee names to known nodes
+		resolveCrossFileEdges(db);
+
 		// Synthesize event edges
 		synthesizeEventEdges(db);
 		const eventEdgeRow = db.query("SELECT COUNT(*) as c FROM edges WHERE kind = 'event'").get() as {
@@ -136,6 +140,55 @@ async function createExtractors(config: LatticeConfig): Promise<readonly Extract
 		// TypeScript extractor will be added later
 	}
 	return extractors;
+}
+
+/**
+ * Resolves uncertain cross-file edges by matching callee names to known nodes.
+ * If a callee name (e.g., "create_order") matches exactly one node name in the graph,
+ * the edge target is updated to the full node ID.
+ */
+function resolveCrossFileEdges(db: Database): void {
+	// Find all uncertain edges where target_id is not a known node
+	const uncertainEdges = db
+		.query(
+			`SELECT e.rowid, e.source_id, e.target_id FROM edges e
+			WHERE e.certainty = 'uncertain'
+			AND NOT EXISTS (SELECT 1 FROM nodes WHERE id = e.target_id)`,
+		)
+		.all() as { rowid: number; source_id: string; target_id: string }[];
+
+	// Build a name→id map for all nodes (only keep unambiguous names)
+	const allNodes = db.query("SELECT id, name FROM nodes").all() as { id: string; name: string }[];
+	const nameToIds = new Map<string, string[]>();
+	for (const node of allNodes) {
+		const existing = nameToIds.get(node.name);
+		if (existing) {
+			existing.push(node.id);
+		} else {
+			nameToIds.set(node.name, [node.id]);
+		}
+	}
+
+	const deleteStmt = db.prepare("DELETE FROM edges WHERE rowid = ?");
+	const insertStmt = db.prepare(
+		"INSERT OR IGNORE INTO edges (source_id, target_id, kind, certainty) VALUES (?, ?, 'calls', 'certain')",
+	);
+
+	const tx = db.transaction(() => {
+		for (const edge of uncertainEdges) {
+			// Try to resolve the callee name
+			const calleeName = edge.target_id.split(".").pop() ?? edge.target_id;
+			const candidates = nameToIds.get(calleeName);
+
+			if (candidates && candidates.length === 1 && candidates[0]) {
+				// Unambiguous match — replace the uncertain edge
+				deleteStmt.run(edge.rowid);
+				insertStmt.run(edge.source_id, candidates[0]);
+			}
+			// If ambiguous or not found, leave the uncertain edge as-is
+		}
+	});
+	tx();
 }
 
 /** Checks if a file path matches any exclude pattern. */

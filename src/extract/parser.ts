@@ -42,9 +42,11 @@ type TreeSitterNode = {
 let initialized = false;
 const languageCache = new Map<string, TreeSitterLanguage>();
 
-/** Resolves the WASM file path for a language grammar. */
+/** Resolves the WASM file path for a language grammar relative to this package. */
 function grammarPath(language: string): string {
-	return `node_modules/tree-sitter-wasms/out/tree-sitter-${language}.wasm`;
+	// resolve() is needed because CWD may differ from the package root
+	const packageRoot = new URL("../../", import.meta.url).pathname;
+	return `${packageRoot}node_modules/tree-sitter-wasms/out/tree-sitter-${language}.wasm`;
 }
 
 /**

@@ -1,0 +1,91 @@
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { err, ok, type Result } from "../types/result.ts";
+
+/**
+ * Initializes a Lattice project by creating .lattice/ directory
+ * and a starter lattice.toml with detected languages.
+ *
+ * @param projectRoot - Path to the project root directory
+ * @returns Ok on success, Err with a message on failure
+ */
+function executeInit(projectRoot: string): Result<string, string> {
+	try {
+		// Create .lattice directory
+		const latticeDir = join(projectRoot, ".lattice");
+		mkdirSync(latticeDir, { recursive: true });
+
+		// Generate lattice.toml if it doesn't exist
+		const tomlPath = join(projectRoot, "lattice.toml");
+		if (!existsSync(tomlPath)) {
+			const languages = detectLanguages(projectRoot);
+			const toml = generateToml(languages);
+			writeFileSync(tomlPath, toml);
+		}
+
+		return ok("Initialized Lattice project");
+	} catch (error) {
+		return err(`Init failed: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+
+/** Detects which languages are present in the project by scanning for file extensions. */
+function detectLanguages(projectRoot: string): readonly string[] {
+	const languages: string[] = [];
+	const glob = new Bun.Glob("**/*.{py,ts,tsx,js,jsx}");
+
+	let hasPython = false;
+	let hasTypeScript = false;
+
+	for (const path of glob.scanSync({ cwd: projectRoot, dot: false })) {
+		if (path.includes("node_modules") || path.includes(".git")) continue;
+		if (path.endsWith(".py")) hasPython = true;
+		if (path.endsWith(".ts") || path.endsWith(".tsx")) hasTypeScript = true;
+		if (hasPython && hasTypeScript) break;
+	}
+
+	if (hasPython) languages.push("python");
+	if (hasTypeScript) languages.push("typescript");
+
+	return languages;
+}
+
+/** Generates a starter lattice.toml with detected languages. */
+function generateToml(languages: readonly string[]): string {
+	const langArray = languages.map((l) => `"${l}"`).join(", ");
+	const lines: string[] = [
+		"[project]",
+		`languages = [${langArray}]`,
+		'root = "."',
+		'exclude = ["node_modules", "venv", ".git", "dist", "__pycache__", ".lattice"]',
+		"",
+	];
+
+	if (languages.includes("python")) {
+		lines.push("[python]", 'source_roots = ["."]', 'test_paths = ["tests"]', "frameworks = []", "");
+	}
+
+	if (languages.includes("typescript")) {
+		lines.push(
+			"[typescript]",
+			'source_roots = ["."]',
+			'test_paths = ["__tests__", "*.test.ts"]',
+			"frameworks = []",
+			"",
+		);
+	}
+
+	lines.push(
+		"[lint]",
+		"strict = false",
+		"ignore = []",
+		"",
+		"[lint.boundaries]",
+		"packages = []",
+		"",
+	);
+
+	return lines.join("\n");
+}
+
+export { executeInit };
