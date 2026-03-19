@@ -5,6 +5,8 @@ import { Command } from "commander";
 import { executeBuild } from "./commands/build.ts";
 import { executeInit } from "./commands/init.ts";
 import { executeLint } from "./commands/lint.ts";
+import { executePopulate } from "./commands/populate.ts";
+import { executeUpdate } from "./commands/update.ts";
 import { parseConfig } from "./config.ts";
 import { checkSchemaVersion } from "./graph/database.ts";
 import {
@@ -167,6 +169,48 @@ program
 		if (hasErrors || (opts.strict && hasWarnings)) {
 			process.exit(1);
 		}
+	});
+
+// --- update ---
+program
+	.command("update")
+	.description("Incremental: re-index only files changed since last build")
+	.action(async () => {
+		const cwd = process.cwd();
+		const configResult = loadConfig(cwd);
+		if (!isOk(configResult)) {
+			console.error(configResult.error);
+			process.exit(1);
+		}
+		const config = unwrap(configResult);
+		const result = await executeUpdate(cwd, config);
+		if (isOk(result)) {
+			const stats = unwrap(result);
+			console.log(
+				`Updated: ${stats.filesReindexed}/${stats.totalFiles} files re-indexed (${stats.durationMs}ms)`,
+			);
+		} else {
+			console.error(result.error);
+			process.exit(1);
+		}
+	});
+
+// --- populate ---
+program
+	.command("populate")
+	.description("Output agent instructions for tagging the codebase")
+	.action(() => {
+		const cwd = process.cwd();
+		const configResult = loadConfig(cwd);
+		if (!isOk(configResult)) {
+			console.error(configResult.error);
+			process.exit(1);
+		}
+		const config = unwrap(configResult);
+		const db = openDb(cwd);
+		const output = executePopulate(db, config);
+		db.close();
+		console.log(output);
 	});
 
 // --- overview ---
