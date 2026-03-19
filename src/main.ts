@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { Database } from "bun:sqlite";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

@@ -55,6 +55,19 @@ Four tags, placed only at entry points and boundaries. Everything in between is 
 
 ## Installation
 
+### bun (recommended)
+
+```bash
+bun add -g lattice-graph
+```
+
+### npx (no install)
+
+```bash
+bunx lattice-graph init
+bunx lattice-graph build
+```
+
 ### From source
 
 ```bash
@@ -62,12 +75,6 @@ git clone https://github.com/your-org/lattice.git
 cd lattice
 bun install
 bun run build          # compiles to ./lattice binary
-```
-
-### Development mode
-
-```bash
-bun src/main.ts        # run directly without compiling
 ```
 
 ## Quick Start

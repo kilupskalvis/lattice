@@ -1,8 +1,17 @@
 {
-	"name": "lattice",
+	"name": "lattice-graph",
+	"version": "0.1.0",
+	"description": "Knowledge graph CLI for coding agents — navigate code through flows, not grep.",
 	"module": "src/main.ts",
 	"type": "module",
-	"private": true,
+	"bin": {
+		"lattice": "src/main.ts"
+	},
+	"files": [
+		"src",
+		"README.md",
+		"LICENSE"
+	],
 	"scripts": {
 		"dev": "bun src/main.ts",
 		"test": "bun test",
@@ -12,6 +21,23 @@
 		"check": "bun run lint && bun run typecheck && bun run test",
 		"build": "bun build src/main.ts --compile --outfile lattice",
 		"prepare": "bunx lefthook install"
+	},
+	"keywords": [
+		"cli",
+		"knowledge-graph",
+		"coding-agent",
+		"code-navigation",
+		"tree-sitter",
+		"ast",
+		"static-analysis"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/your-org/lattice"
+	},
+	"engines": {
+		"bun": ">=1.0.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",
