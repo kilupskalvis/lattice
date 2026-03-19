@@ -302,6 +302,64 @@ packages = ["stripe", "boto3", "psycopg2", "requests", "sendgrid"]
 
 Adding a new language requires implementing one extractor. The graph schema, CLI commands, linter, and output formatting are all language-agnostic.
 
+## Agent Integration (Claude Code)
+
+To make coding agents use Lattice instead of grep/read for codebase navigation, add these files to your project.
+
+### `.claude/CLAUDE.md`
+
+```markdown
+# Codebase Navigation
+
+This project uses Lattice for codebase navigation. Before using Grep, Glob, or
+reading files to understand code, use Lattice commands via Bash.
+
+## Workflow for any task
+
+1. Orient:    lattice overview
+2. Locate:    lattice flow <name>
+3. Understand: lattice context <symbol>
+4. Scope:     lattice impact <symbol>
+5. Read:      lattice code <symbol>
+6. Edit:      Read/Edit tools on the specific file and line range
+
+## When to use Lattice vs traditional tools
+
+- Understand a function     -> lattice context <symbol>   (not Grep)
+- Find callers              -> lattice callers <symbol>    (not Grep)
+- See a business flow       -> lattice flow <name>         (not reading files)
+- Check change impact       -> lattice impact <symbol>     (not Grep for usages)
+- Read code to edit         -> lattice code <symbol>       (not Read on whole file)
+- Search for string literal -> Grep (this is fine)
+- Find config files         -> Glob (this is fine)
+
+## After code changes
+
+lattice update              # incremental re-index
+lattice build && lattice lint   # after adding/changing tags
+```
+
+### `.claude/settings.json`
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep",
+        "command": "echo \"STOP: Before using Grep, check if Lattice can answer your question faster:\n  lattice context <symbol>  - function neighborhood\n  lattice callers <symbol>  - what calls this\n  lattice flow <name>       - full call tree\n  lattice impact <symbol>   - change impact\nGrep is appropriate for: string literals, config values, error messages.\nGrep is NOT appropriate for: finding function definitions, understanding call chains, tracing flows.\""
+      },
+      {
+        "matcher": "Glob",
+        "command": "echo \"STOP: Before using Glob, check if Lattice can answer your question faster:\n  lattice overview          - all flows, boundaries, events\n  lattice flows             - all entry points\n  lattice boundaries        - all external systems\n  lattice context <symbol>  - where a symbol lives\nGlob is appropriate for: config files, assets, non-code files.\nGlob is NOT appropriate for: finding source files or function locations.\""
+      }
+    ]
+  }
+}
+```
+
+The hooks remind the agent to try Lattice before falling back to traditional tools. They don't block — they guide.
+
 ## Requirements
 
 - [Bun](https://bun.sh) >= 1.0 (for development and compilation)
