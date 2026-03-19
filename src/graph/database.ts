@@ -59,6 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_name ON nodes(name);
  * @param path - File path for the database, or ":memory:" for in-memory
  * @returns An open Database handle with the schema applied
  */
+// @lattice:boundary sqlite
 function createDatabase(path: string): Database {
 	const db = new Database(path);
 	db.run("PRAGMA journal_mode = WAL");

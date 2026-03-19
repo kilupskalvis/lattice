@@ -36,6 +36,7 @@ type BuildStats = {
  * @param config - Parsed Lattice configuration
  * @returns Build statistics or an error message
  */
+// @lattice:flow build
 async function executeBuild(
 	projectRoot: string,
 	config: LatticeConfig,

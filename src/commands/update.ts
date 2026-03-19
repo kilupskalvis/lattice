@@ -34,6 +34,7 @@ type UpdateStats = {
  * @param config - Lattice configuration
  * @returns Update statistics or an error message
  */
+// @lattice:flow update
 async function executeUpdate(
 	projectRoot: string,
 	config: LatticeConfig,

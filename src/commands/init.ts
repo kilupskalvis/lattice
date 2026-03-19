@@ -9,6 +9,7 @@ import { err, ok, type Result } from "../types/result.ts";
  * @param projectRoot - Path to the project root directory
  * @returns Ok on success, Err with a message on failure
  */
+// @lattice:flow init
 function executeInit(projectRoot: string): Result<string, string> {
 	try {
 		// Create .lattice directory
@@ -19,7 +20,8 @@ function executeInit(projectRoot: string): Result<string, string> {
 		const tomlPath = join(projectRoot, "lattice.toml");
 		if (!existsSync(tomlPath)) {
 			const languages = detectLanguages(projectRoot);
-			const toml = generateToml(languages);
+			const root = detectRoot(projectRoot);
+			const toml = generateToml(languages, root);
 			writeFileSync(tomlPath, toml);
 		}
 
@@ -38,7 +40,15 @@ function detectLanguages(projectRoot: string): readonly string[] {
 	let hasTypeScript = false;
 
 	for (const path of glob.scanSync({ cwd: projectRoot, dot: false })) {
-		if (path.includes("node_modules") || path.includes(".git")) continue;
+		if (
+			path.includes("node_modules") ||
+			path.includes(".git") ||
+			path.includes("test") ||
+			path.includes("fixture") ||
+			path.includes("vendor") ||
+			path.includes("dist")
+		)
+			continue;
 		if (path.endsWith(".py")) hasPython = true;
 		if (path.endsWith(".ts") || path.endsWith(".tsx")) hasTypeScript = true;
 		if (hasPython && hasTypeScript) break;
@@ -50,26 +60,44 @@ function detectLanguages(projectRoot: string): readonly string[] {
 	return languages;
 }
 
+/** Detects the source root — uses "src" if it exists, otherwise ".". */
+function detectRoot(projectRoot: string): string {
+	const srcPath = `${projectRoot}/src`;
+	try {
+		const { statSync } = require("node:fs");
+		if (statSync(srcPath).isDirectory()) return "src";
+	} catch {
+		// src/ doesn't exist
+	}
+	return ".";
+}
+
 /** Generates a starter lattice.toml with detected languages. */
-function generateToml(languages: readonly string[]): string {
+function generateToml(languages: readonly string[], root: string): string {
 	const langArray = languages.map((l) => `"${l}"`).join(", ");
 	const lines: string[] = [
 		"[project]",
 		`languages = [${langArray}]`,
-		'root = "."',
+		`root = "${root}"`,
 		'exclude = ["node_modules", "venv", ".git", "dist", "__pycache__", ".lattice"]',
 		"",
 	];
 
 	if (languages.includes("python")) {
-		lines.push("[python]", 'source_roots = ["."]', 'test_paths = ["tests"]', "frameworks = []", "");
+		lines.push(
+			"[python]",
+			`source_roots = ["${root}"]`,
+			'test_paths = ["tests"]',
+			"frameworks = []",
+			"",
+		);
 	}
 
 	if (languages.includes("typescript")) {
 		lines.push(
 			"[typescript]",
-			'source_roots = ["."]',
-			'test_paths = ["__tests__", "*.test.ts"]',
+			`source_roots = ["${root}"]`,
+			'test_paths = ["tests"]',
 			"frameworks = []",
 			"",
 		);

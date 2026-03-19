@@ -10,6 +10,7 @@ import type { LintIssue, LintResult } from "../types/lint.ts";
  * @param config - Lattice configuration for boundary package detection
  * @returns Lint result with issues, coverage, and unresolved count
  */
+// @lattice:flow lint
 function executeLint(db: Database, config: LatticeConfig): LintResult {
 	const issues: LintIssue[] = [];
 

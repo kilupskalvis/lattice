@@ -73,4 +73,43 @@ describe("executeInit", () => {
 		expect(toml).resolves.toContain("typescript");
 		cleanup();
 	});
+
+	it("sets root to src when src/ directory exists", () => {
+		setup();
+		mkdirSync(join(TMP_DIR, "src"), { recursive: true });
+		writeFileSync(join(TMP_DIR, "src/app.ts"), "export {}");
+
+		executeInit(TMP_DIR);
+
+		const toml = Bun.file(join(TMP_DIR, "lattice.toml")).text();
+		expect(toml).resolves.toContain('root = "src"');
+		cleanup();
+	});
+
+	it("sets root to . when no src/ directory", () => {
+		setup();
+		writeFileSync(join(TMP_DIR, "app.ts"), "export {}");
+
+		executeInit(TMP_DIR);
+
+		const toml = Bun.file(join(TMP_DIR, "lattice.toml")).text();
+		expect(toml).resolves.toContain('root = "."');
+		cleanup();
+	});
+
+	it("ignores test and fixture directories for language detection", () => {
+		setup();
+		mkdirSync(join(TMP_DIR, "src"), { recursive: true });
+		mkdirSync(join(TMP_DIR, "tests/fixtures/python-app"), { recursive: true });
+		writeFileSync(join(TMP_DIR, "src/app.ts"), "export {}");
+		writeFileSync(join(TMP_DIR, "tests/fixtures/python-app/main.py"), "pass");
+
+		executeInit(TMP_DIR);
+
+		const toml = Bun.file(join(TMP_DIR, "lattice.toml")).text();
+		// Should detect only TypeScript, not Python from fixtures
+		expect(toml).resolves.toContain("typescript");
+		expect(toml).resolves.not.toContain("python");
+		cleanup();
+	});
 });
