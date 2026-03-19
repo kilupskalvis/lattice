@@ -1,0 +1,23 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "error"
+			},
+			"style": {
+				"noDefaultExport": "error"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"files": {
+		"includes": ["src/**", "tests/**"]
+	}
+}
