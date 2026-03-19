@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import type { Extractor } from "../extract/extractor.ts";
 import { initTreeSitter } from "../extract/parser.ts";
 import { createPythonExtractor } from "../extract/python/extractor.ts";
+import { createTypeScriptExtractor } from "../extract/typescript/extractor.ts";
 import { checkSchemaVersion } from "../graph/database.ts";
 import {
 	deleteFileData,
@@ -154,6 +155,9 @@ async function createExtractors(config: LatticeConfig): Promise<readonly Extract
 	for (const lang of config.languages) {
 		if (lang === "python") {
 			extractors.push(await createPythonExtractor());
+		}
+		if (lang === "typescript") {
+			extractors.push(await createTypeScriptExtractor());
 		}
 	}
 	return extractors;
