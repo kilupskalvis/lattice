@@ -1,26 +1,27 @@
 {
-  "name": "lattice",
-  "module": "src/main.ts",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "dev": "bun src/main.ts",
-    "test": "bun test",
-    "lint": "bunx biome check src/ tests/",
-    "format": "bunx biome check --write src/ tests/",
-    "typecheck": "bun tsc --noEmit",
-    "check": "bun run lint && bun run typecheck && bun run test"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.8",
-    "@types/bun": "latest",
-    "lefthook": "^2.1.4"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "commander": "^14.0.3",
-    "smol-toml": "^1.6.0"
-  }
+	"name": "lattice",
+	"module": "src/main.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "bun src/main.ts",
+		"test": "bun test",
+		"lint": "bunx biome check src/ tests/",
+		"format": "bunx biome check --write src/ tests/",
+		"typecheck": "bun tsc --noEmit",
+		"check": "bun run lint && bun run typecheck && bun run test",
+		"prepare": "bunx lefthook install"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.8",
+		"@types/bun": "latest",
+		"lefthook": "^2.1.4"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"commander": "^14.0.3",
+		"smol-toml": "^1.6.0"
+	}
 }

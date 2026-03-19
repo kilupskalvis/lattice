@@ -2,8 +2,13 @@ pre-commit:
   parallel: true
   jobs:
     - name: biome
-      glob: "{src,tests}/**/*.ts"
-      run: source ~/.bash_profile && bunx biome check --write {staged_files}
+      glob: "*.{ts,json}"
+      run: ./node_modules/.bin/biome check --write {staged_files}
       stage_fixed: true
     - name: typecheck
-      run: source ~/.bash_profile && bun tsc --noEmit
+      run: bun tsc --noEmit
+
+pre-push:
+  jobs:
+    - name: tests
+      run: bun test
