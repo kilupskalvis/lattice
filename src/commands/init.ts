@@ -103,15 +103,7 @@ function generateToml(languages: readonly string[], root: string): string {
 		);
 	}
 
-	lines.push(
-		"[lint]",
-		"strict = false",
-		"ignore = []",
-		"",
-		"[lint.boundaries]",
-		"packages = []",
-		"",
-	);
+	lines.push("[lint]", "strict = false", "ignore = []", "");
 
 	return lines.join("\n");
 }

@@ -26,7 +26,7 @@ const config: LatticeConfig = {
 	exclude: [],
 	python: { sourceRoots: ["."], testPaths: ["tests"], frameworks: ["fastapi"] },
 	typescript: undefined,
-	lint: { strict: false, ignore: [], boundaryPackages: ["stripe"] },
+	lint: { strict: false, ignore: [] },
 };
 
 let db: Database;

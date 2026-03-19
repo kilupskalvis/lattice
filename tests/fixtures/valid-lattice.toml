@@ -11,6 +11,3 @@ frameworks = ["fastapi"]
 [lint]
 strict = false
 ignore = ["scripts/**"]
-
-[lint.boundaries]
-packages = ["stripe", "psycopg2"]

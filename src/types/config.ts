@@ -17,7 +17,6 @@ type TypeScriptConfig = {
 type LintConfig = {
 	readonly strict: boolean;
 	readonly ignore: readonly string[];
-	readonly boundaryPackages: readonly string[];
 };
 
 /** Top-level Lattice configuration parsed from lattice.toml. */

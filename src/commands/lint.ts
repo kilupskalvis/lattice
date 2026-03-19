@@ -11,15 +11,14 @@ import type { LintIssue, LintResult } from "../types/lint.ts";
  * @returns Lint result with issues, coverage, and unresolved count
  */
 // @lattice:flow lint
-function executeLint(db: Database, config: LatticeConfig): LintResult {
+function executeLint(db: Database, _config: LatticeConfig): LintResult {
 	const issues: LintIssue[] = [];
 
 	checkMissingFlowTags(db, issues);
-	checkMissingBoundaryTags(db, config, issues);
 	checkInvalidTags(db, issues);
 	checkTypos(db, issues);
 	checkOrphanedEvents(db, issues);
-	checkStaleBoundaryTags(db, config, issues);
+	checkStaleBoundaryTags(db, issues);
 
 	const coverage = computeCoverage(db);
 	const unresolvedCount = countUnresolved(db);
@@ -46,52 +45,6 @@ function checkMissingFlowTags(db: Database, issues: LintIssue[]): void {
 			symbol: row.name,
 			message: `Route handler missing @lattice:flow tag`,
 		});
-	}
-}
-
-/** Checks for functions calling boundary packages without @lattice:boundary tags. */
-function checkMissingBoundaryTags(db: Database, config: LatticeConfig, issues: LintIssue[]): void {
-	const boundaryPackages = config.lint.boundaryPackages;
-	if (boundaryPackages.length === 0) return;
-
-	// Find nodes that have uncertain call edges to known boundary packages
-	// but don't have a boundary tag
-	const allEdges = db
-		.query(
-			`SELECT DISTINCT e.source_id FROM edges e
-			WHERE e.certainty = 'uncertain'
-			AND NOT EXISTS (SELECT 1 FROM tags t WHERE t.node_id = e.source_id AND t.kind = 'boundary')`,
-		)
-		.all() as { source_id: string }[];
-
-	for (const edge of allEdges) {
-		// Check if any of this node's uncertain targets start with a boundary package name
-		const targets = db
-			.query("SELECT target_id FROM edges WHERE source_id = ? AND certainty = 'uncertain'")
-			.all(edge.source_id) as { target_id: string }[];
-
-		const callsBoundary = targets.some((t) =>
-			boundaryPackages.some((pkg) => t.target_id.startsWith(`${pkg}.`) || t.target_id === pkg),
-		);
-
-		if (callsBoundary) {
-			const node = db
-				.query("SELECT name, file, line_start FROM nodes WHERE id = ?")
-				.get(edge.source_id) as {
-				name: string;
-				file: string;
-				line_start: number;
-			} | null;
-			if (node) {
-				issues.push({
-					severity: "error",
-					file: node.file,
-					line: node.line_start,
-					symbol: node.name,
-					message: `Calls boundary package but missing @lattice:boundary tag`,
-				});
-			}
-		}
 	}
 }
 
@@ -207,11 +160,12 @@ function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
 	}
 }
 
-/** Checks for stale boundary tags on functions that don't call the boundary package. */
-function checkStaleBoundaryTags(db: Database, config: LatticeConfig, issues: LintIssue[]): void {
-	const boundaryPackages = config.lint.boundaryPackages;
-	if (boundaryPackages.length === 0) return;
-
+/**
+ * Checks for stale boundary tags.
+ * A boundary tag is stale if the tagged function has no uncertain call edges at all
+ * (meaning it doesn't call any external code that could be the boundary).
+ */
+function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
 	const boundaryTags = db
 		.query(
 			`SELECT t.node_id, t.value, n.name, n.file, n.line_start FROM tags t
@@ -221,22 +175,19 @@ function checkStaleBoundaryTags(db: Database, config: LatticeConfig, issues: Lin
 		.all() as { node_id: string; value: string; name: string; file: string; line_start: number }[];
 
 	for (const tag of boundaryTags) {
-		// Check if this node has any call edges to the boundary package
-		const callsPackage = db
-			.query(
-				`SELECT 1 FROM edges WHERE source_id = ? AND (
-					target_id LIKE ? || '.%' OR target_id = ?
-				) LIMIT 1`,
-			)
-			.get(tag.node_id, tag.value, tag.value);
+		// A boundary function should have at least one uncertain call edge
+		// (calls to external packages are marked uncertain during extraction)
+		const hasExternalCall = db
+			.query("SELECT 1 FROM edges WHERE source_id = ? AND certainty = 'uncertain' LIMIT 1")
+			.get(tag.node_id);
 
-		if (!callsPackage) {
+		if (!hasExternalCall) {
 			issues.push({
 				severity: "warning",
 				file: tag.file,
 				line: tag.line_start,
 				symbol: tag.name,
-				message: `@lattice:boundary "${tag.value}" may be stale — no calls to ${tag.value} package found`,
+				message: `@lattice:boundary "${tag.value}" may be stale — no external calls found in this function`,
 			});
 		}
 	}

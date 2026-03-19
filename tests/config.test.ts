@@ -11,7 +11,6 @@ describe("parseConfig", () => {
 		expect(config.languages).toEqual(["python"]);
 		expect(config.root).toBe("src");
 		expect(config.python?.frameworks).toEqual(["fastapi"]);
-		expect(config.lint.boundaryPackages).toEqual(["stripe", "psycopg2"]);
 	});
 
 	it("applies defaults for missing optional fields", async () => {
@@ -23,7 +22,6 @@ describe("parseConfig", () => {
 		expect(config.exclude).toContain("node_modules");
 		expect(config.lint.strict).toBe(false);
 		expect(config.lint.ignore).toEqual([]);
-		expect(config.lint.boundaryPackages).toEqual([]);
 	});
 
 	it("returns error for missing languages", () => {

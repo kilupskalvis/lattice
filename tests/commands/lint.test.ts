@@ -26,7 +26,7 @@ const defaultConfig: LatticeConfig = {
 	exclude: [],
 	python: { sourceRoots: ["."], testPaths: ["tests"], frameworks: ["fastapi"] },
 	typescript: undefined,
-	lint: { strict: false, ignore: [], boundaryPackages: ["stripe", "psycopg2"] },
+	lint: { strict: false, ignore: [] },
 };
 
 let db: Database;
@@ -54,24 +54,6 @@ describe("executeLint — missing tags", () => {
 			(i) => i.severity === "error" && i.message.includes("flow"),
 		);
 		expect(flowErrors.length).toBeGreaterThan(0);
-	});
-
-	it("reports missing @lattice:boundary on function calling boundary package", () => {
-		insertNodes(db, [makeNode({ id: "src/pay.py::charge", name: "charge" })]);
-		insertEdges(db, [
-			{
-				sourceId: "src/pay.py::charge",
-				targetId: "stripe.charges.create",
-				kind: "calls",
-				certainty: "uncertain",
-			},
-		]);
-
-		const result = executeLint(db, defaultConfig);
-		const boundaryErrors = result.issues.filter(
-			(i) => i.severity === "error" && i.message.includes("boundary"),
-		);
-		expect(boundaryErrors.length).toBeGreaterThan(0);
 	});
 });
 

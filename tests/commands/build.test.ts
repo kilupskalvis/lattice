@@ -26,7 +26,7 @@ describe("executeBuild", () => {
 				frameworks: ["fastapi"],
 			},
 			typescript: undefined,
-			lint: { strict: false, ignore: [], boundaryPackages: [] },
+			lint: { strict: false, ignore: [] },
 		});
 
 		expect(isOk(result)).toBe(true);
@@ -48,7 +48,7 @@ describe("executeBuild", () => {
 			exclude: [],
 			python: { sourceRoots: ["src"], testPaths: ["tests"], frameworks: [] },
 			typescript: undefined,
-			lint: { strict: false, ignore: [], boundaryPackages: [] },
+			lint: { strict: false, ignore: [] },
 		});
 
 		expect(existsSync(`${TMP_LATTICE}/graph.db`)).toBe(true);
@@ -65,7 +65,7 @@ describe("executeBuild", () => {
 			exclude: [],
 			python: { sourceRoots: ["src"], testPaths: ["tests"], frameworks: [] },
 			typescript: undefined,
-			lint: { strict: false, ignore: [], boundaryPackages: [] },
+			lint: { strict: false, ignore: [] },
 		});
 
 		const stats = unwrap(result);
@@ -83,7 +83,7 @@ describe("executeBuild", () => {
 			exclude: [],
 			python: { sourceRoots: ["src"], testPaths: ["tests"], frameworks: [] },
 			typescript: undefined,
-			lint: { strict: false, ignore: [], boundaryPackages: [] },
+			lint: { strict: false, ignore: [] },
 		});
 
 		const { Database } = await import("bun:sqlite");

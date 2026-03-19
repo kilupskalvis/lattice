@@ -74,11 +74,9 @@ function parseTypeScriptSection(raw: unknown): TypeScriptConfig {
 /** Parses the [lint] section with defaults for missing fields. */
 function parseLintSection(raw: unknown): LintConfig {
 	const section = isRecord(raw) ? raw : {};
-	const boundaries = isRecord(section.boundaries) ? section.boundaries : {};
 	return {
 		strict: section.strict === true,
 		ignore: isStringArray(section.ignore) ? section.ignore : [],
-		boundaryPackages: isStringArray(boundaries.packages) ? boundaries.packages : [],
 	};
 }
 
