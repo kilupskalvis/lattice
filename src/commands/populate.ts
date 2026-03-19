@@ -2,9 +2,9 @@ import type { Database } from "bun:sqlite";
 import type { LatticeConfig } from "../types/config.ts";
 
 /**
- * Generates a structured prompt that instructs a coding agent to tag the codebase.
- * Provides the tag spec with few-shot examples, a brief project summary,
- * and existing tags if any. The agent reads the code and decides what to tag.
+ * Generates a structured workflow that instructs a coding agent to tag the codebase.
+ * Includes tag spec, few-shot examples, project context, and a step-by-step process
+ * with explicit validation checkpoints.
  *
  * @param db - An open Database handle with a built graph
  * @param _config - Lattice configuration (reserved for future use)
@@ -14,27 +14,17 @@ import type { LatticeConfig } from "../types/config.ts";
 function executePopulate(db: Database, _config: LatticeConfig): string {
 	const sections: string[] = [];
 
-	sections.push(taskSection());
 	sections.push(tagSpecSection());
 	sections.push(examplesSection());
 	sections.push(projectSummarySection(db));
-	sections.push(validationSection());
+	sections.push(workflowSection());
 
 	return sections.join("\n\n");
 }
 
-/** Describes the task the agent needs to perform. */
-function taskSection(): string {
-	return `## Task
-
-Add Lattice tags to this codebase. Lattice builds a knowledge graph from these tags so coding agents can navigate the code through graph queries instead of grep and file reading.
-
-Your job: read the source code, identify entry points, external boundaries, and event connections, then add the appropriate tags as comments above the relevant functions.`;
-}
-
 /** Outputs the tag spec — what each tag means and the syntax rules. */
 function tagSpecSection(): string {
-	return `## Tags
+	return `## Lattice Tag Specification
 
 Four tags, placed in comments directly above function definitions:
 
@@ -122,7 +112,6 @@ def render_invoice(order):
 function projectSummarySection(db: Database): string {
 	const lines: string[] = ["## This Project", ""];
 
-	// Summary stats
 	const fileCount = (db.query("SELECT COUNT(DISTINCT file) as c FROM nodes").get() as { c: number })
 		.c;
 	const nodeCount = (db.query("SELECT COUNT(*) as c FROM nodes").get() as { c: number }).c;
@@ -130,7 +119,6 @@ function projectSummarySection(db: Database): string {
 
 	lines.push(`${fileCount} files, ${nodeCount} symbols, ${edgeCount} call edges in the graph.`);
 
-	// Existing tags
 	const existingTags = db
 		.query("SELECT kind, value, node_id FROM tags ORDER BY kind, value")
 		.all() as { kind: string; value: string; node_id: string }[];
@@ -152,19 +140,85 @@ function projectSummarySection(db: Database): string {
 	return lines.join("\n");
 }
 
-/** Validation instructions for after tagging. */
-function validationSection(): string {
-	return `## Validation
+/** The complete step-by-step workflow with validation checkpoints. */
+function workflowSection(): string {
+	return `## Workflow
 
-After adding tags, rebuild and check:
+Follow these steps in order. Do not skip validation steps.
+
+### Step 1: Tag entry points
+
+Read the source files and identify all entry points — route handlers, CLI commands, cron jobs, queue consumers, event listeners. Add \`@lattice:flow <name>\` above each one.
+
+Use domain names for flows: "checkout", "user-registration", "invoice-generation" — not function names.
+
+### Step 2: Tag boundaries
+
+Identify all functions that call external systems — APIs, databases, caches, file storage, third-party SDKs. Add \`@lattice:boundary <system>\` above each one.
+
+Use the external system name: "stripe", "postgres", "redis", "s3" — not the function or library name.
+
+### Step 3: Tag events
+
+If the codebase uses event-driven patterns, identify publishers and consumers. Add \`@lattice:emits <event>\` and \`@lattice:handles <event>\` where applicable. Event names must match between emitters and handlers.
+
+### Step 4: Rebuild and lint
 
 \`\`\`bash
 lattice build && lattice lint
 \`\`\`
 
-Then verify with:
-- \`lattice overview\` — check that flows, boundaries, and events look correct
-- \`lattice flow <name>\` — check that each flow's call tree makes sense`;
+Fix any errors reported by lint:
+- Missing tags on detected entry points or boundary calls
+- Invalid tags (wrong placement, bad syntax)
+- Typos in tag names
+- Orphaned events (emits without handles, or vice versa)
+- Stale tags (boundary tag on a function that no longer calls that system)
+
+Repeat this step until lint reports zero errors.
+
+### Step 5: Verify flows
+
+Run \`lattice overview\` and check:
+- Are all business flows listed?
+- Are all external systems represented in boundaries?
+- Are all event connections shown?
+
+If anything is missing, go back to steps 1-3 and add the missing tags.
+
+### Step 6: Verify call trees
+
+For each flow listed in \`lattice overview\`, run:
+
+\`\`\`bash
+lattice flow <name>
+\`\`\`
+
+Check each call tree:
+- Does it start at the correct entry point?
+- Does it reach the expected boundaries?
+- Are there functions in the tree that should be boundaries but aren't tagged?
+- Does event propagation cross into the expected handlers?
+
+If a call tree is missing expected functions, those functions may not be reachable from the entry point through the call graph. Check if there are missing call edges (dynamic dispatch, dependency injection) and consider whether additional tags are needed.
+
+### Step 7: Verify impact
+
+For each boundary, run:
+
+\`\`\`bash
+lattice impact <symbol>
+\`\`\`
+
+Check that the affected flows make sense. If a boundary is used by flows you didn't expect, investigate whether the flow tagging is correct.
+
+### Done
+
+The codebase is tagged when:
+- \`lattice lint\` reports zero errors
+- \`lattice overview\` shows all expected flows, boundaries, and events
+- Each \`lattice flow <name>\` shows a complete, sensible call tree
+- \`lattice impact\` on key functions shows the expected affected flows`;
 }
 
 export { executePopulate };
