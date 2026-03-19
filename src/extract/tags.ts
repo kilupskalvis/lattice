@@ -9,8 +9,8 @@ type ParsedTag = {
 
 const VALID_TAG_KINDS = new Set<string>(["flow", "boundary", "emits", "handles"]);
 
-/** Matches @lattice:<kind> <value> after comment prefix has been stripped. */
-const TAG_PATTERN = /@lattice:(\w+)\s+(.+)/;
+/** Matches @lattice:<kind> <value> at the START of a stripped comment line. */
+const TAG_PATTERN = /^@lattice:(\w+)\s+(.+)/;
 
 /** Valid tag name: lowercase letters, numbers, hyphens, dots. Must start with a letter or number. */
 const NAME_PATTERN = /^[a-z0-9][a-z0-9\-.]*$/;
