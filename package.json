@@ -27,8 +27,8 @@
 		"knowledge-graph",
 		"coding-agent",
 		"code-navigation",
-		"tree-sitter",
-		"ast",
+		"lsp",
+		"language-server",
 		"static-analysis"
 	],
 	"license": "MIT",
