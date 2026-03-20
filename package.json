@@ -1,6 +1,6 @@
 {
 	"name": "lattice-graph",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Knowledge graph CLI for coding agents — navigate code through flows, not grep.",
 	"module": "src/main.ts",
 	"type": "module",

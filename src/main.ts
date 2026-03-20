@@ -37,7 +37,7 @@ import {
 import type { Node } from "./types/graph.ts";
 import { isOk, unwrap } from "./types/result.ts";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 const program = new Command();
 program.name("lattice").description("Knowledge graph CLI for coding agents").version(VERSION);
