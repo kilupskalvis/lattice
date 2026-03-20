@@ -14,7 +14,7 @@ This project uses **Lattice** for codebase navigation. Before using Grep, Glob, 
 2. **Locate** — Find the relevant flow for your task:
    ```bash
    lattice flows                        # list all flows
-   lattice flow <name>                  # see full call tree
+   lattice flow <name>                  # see full call tree (follows emits/handles across async boundaries)
    ```
 
 3. **Understand** — Get a function's neighborhood before modifying it:

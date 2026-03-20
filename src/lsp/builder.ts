@@ -20,9 +20,6 @@ type LanguageConfig = {
 	readonly extensions: readonly string[];
 	readonly sourceRoots: readonly string[];
 	readonly testPaths: readonly string[];
-	readonly lspCommand: string;
-	readonly lspArgs: readonly string[];
-	readonly languageId: string;
 };
 
 /** Options for building the graph. */
@@ -84,11 +81,14 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 		if (files.length === 0) continue;
 		totalFiles += files.length;
 
+		const lsp = DEFAULT_LSP[langConfig.language];
+		if (!lsp) continue;
+
 		const client = await createLspClient({
-			command: langConfig.lspCommand,
-			args: [...langConfig.lspArgs],
+			command: lsp.command,
+			args: [...lsp.args],
 			rootUri: `file://${projectRoot}`,
-			languageId: langConfig.languageId,
+			languageId: lsp.languageId,
 		});
 
 		try {
@@ -221,20 +221,9 @@ function buildLanguageConfig(
 	language: string,
 	sourceRoots: readonly string[],
 	testPaths: readonly string[],
-	lspCommand: string | undefined,
 ): LanguageConfig {
-	const defaults = DEFAULT_LSP[language];
 	const extensions = language === "python" ? [".py"] : [".ts", ".tsx"];
-
-	return {
-		language,
-		extensions,
-		sourceRoots,
-		testPaths,
-		lspCommand: lspCommand ?? defaults?.command ?? language,
-		lspArgs: lspCommand ? [] : (defaults?.args ?? []),
-		languageId: defaults?.languageId ?? language,
-	};
+	return { language, extensions, sourceRoots, testPaths };
 }
 
 export {

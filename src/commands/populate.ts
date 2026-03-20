@@ -158,11 +158,22 @@ Identify all functions that call external systems — APIs, databases, caches, f
 
 Use the external system name: "stripe", "postgres", "redis", "s3" — not the function or library name.
 
-### Step 3: Tag events
+### Step 3: Tag async dispatch (queues, Lambda, Celery)
 
-If the codebase uses event-driven patterns, identify publishers and consumers. Add \`@lattice:emits <event>\` and \`@lattice:handles <event>\` where applicable. Event names must match between emitters and handlers.
+If the codebase submits work to a queue (SQS, RabbitMQ), invokes Lambda functions, or dispatches Celery tasks, these create invisible connections between the submitter and the handler. Tag both sides:
 
-### Step 4: Rebuild and lint
+- Add \`@lattice:emits job.<name>\` on the function that submits/invokes the async work
+- Add \`@lattice:handles job.<name>\` on the function that processes the work on the other side
+
+Important: Worker handlers and Lambda consumers are NOT separate flows — they are the receiving side of an async dispatch. Tag them with \`@lattice:handles\`, not \`@lattice:flow\`.
+
+Place \`emits\` tags on the function the flow actually passes through, not on a concrete implementation behind a protocol or interface.
+
+### Step 4: Tag events
+
+If the codebase uses event-driven patterns (pub/sub, event bus, signals), identify publishers and consumers. Add \`@lattice:emits <event>\` and \`@lattice:handles <event>\` where applicable. Event names must match between emitters and handlers.
+
+### Step 5: Rebuild and lint
 
 \`\`\`bash
 lattice build && lattice lint

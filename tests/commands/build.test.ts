@@ -26,7 +26,6 @@ describe("executeBuild", () => {
 				sourceRoots: ["."],
 				testPaths: [],
 				tsconfig: undefined,
-				lspCommand: undefined,
 			},
 			lint: { strict: false, ignore: [] },
 		});
@@ -53,7 +52,6 @@ describe("executeBuild", () => {
 				sourceRoots: ["."],
 				testPaths: [],
 				tsconfig: undefined,
-				lspCommand: undefined,
 			},
 			lint: { strict: false, ignore: [] },
 		});
@@ -75,7 +73,6 @@ describe("executeBuild", () => {
 				sourceRoots: ["."],
 				testPaths: [],
 				tsconfig: undefined,
-				lspCommand: undefined,
 			},
 			lint: { strict: false, ignore: [] },
 		});

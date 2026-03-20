@@ -61,28 +61,16 @@ function buildLanguageConfigs(config: LatticeConfig): readonly LanguageConfig[] 
 
 	if (config.languages.includes("typescript") && config.typescript) {
 		configs.push(
-			buildLanguageConfig(
-				"typescript",
-				config.typescript.sourceRoots,
-				config.typescript.testPaths,
-				config.typescript.lspCommand,
-			),
+			buildLanguageConfig("typescript", config.typescript.sourceRoots, config.typescript.testPaths),
 		);
 	} else if (config.languages.includes("typescript")) {
-		configs.push(buildLanguageConfig("typescript", [config.root], [], undefined));
+		configs.push(buildLanguageConfig("typescript", [config.root], []));
 	}
 
 	if (config.languages.includes("python") && config.python) {
-		configs.push(
-			buildLanguageConfig(
-				"python",
-				config.python.sourceRoots,
-				config.python.testPaths,
-				config.python.lspCommand,
-			),
-		);
+		configs.push(buildLanguageConfig("python", config.python.sourceRoots, config.python.testPaths));
 	} else if (config.languages.includes("python")) {
-		configs.push(buildLanguageConfig("python", [config.root], ["tests"], undefined));
+		configs.push(buildLanguageConfig("python", [config.root], ["tests"]));
 	}
 
 	return configs;

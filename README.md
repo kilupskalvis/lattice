@@ -139,6 +139,48 @@ FLOW: checkout
 
 `create_order`, `charge`, `save_order` — none of these need tags. Their flow membership is derived.
 
+### Async job dispatch patterns
+
+For systems that use message queues (SQS, RabbitMQ), Lambda invocations, or Celery tasks, use `emits`/`handles` to connect the submission side to the processing side:
+
+```python
+# @lattice:flow ingest-vacancies
+@router.post("/vacancies")
+def create_vacancies(request, service):
+    job = service.submit_ingest(request.data)
+    return {"job_id": job.id}
+
+# @lattice:emits job.ingest-vacancies
+def submit_ingest(self, data):
+    self.queue.submit(data)            # submits to SQS
+
+# @lattice:handles job.ingest-vacancies
+def process_ingest_vacancies(data, services):
+    normalized = services.normalize(data)    # calls OpenAI
+    services.writer.index(normalized)        # writes to Weaviate
+```
+
+With these tags, `lattice flow ingest-vacancies` shows the complete chain from the API route through the queue to the worker, including normalization and indexing. Without the `emits`/`handles` tags, the flow tree stops at the queue submission.
+
+**Key rule:** Worker handlers, Lambda consumers, and background job processors are NOT separate flows — they are the receiving side of an async dispatch. Tag them with `@lattice:handles`, not `@lattice:flow`.
+
+### Tags and protocols/interfaces
+
+When using dependency injection or protocol-based dispatch, place `emits` tags on the function that the flow actually passes through — not on a concrete implementation behind an interface:
+
+```python
+# Good: tag is on the function the flow reaches
+# @lattice:emits job.sync
+def submit_sync(self):
+    self._invoker.invoke_sync()
+
+# Bad: tag on concrete class that flow doesn't reach directly
+class LambdaInvoker:
+    # @lattice:emits job.sync  ← flow resolves to protocol, not this
+    def invoke_sync(self):
+        lambda_client.invoke(...)
+```
+
 ## Commands
 
 ### Build Commands
@@ -269,13 +311,12 @@ The linter detects:
 
 ## How It Works
 
-1. **Tree-sitter** parses source files into ASTs (Python and TypeScript supported)
-2. **Extractors** walk the AST to extract symbols (functions, classes, methods), call edges, imports, and framework patterns
-3. **Tag parser** reads `@lattice:` comments and associates them with the function below
+1. **LSP servers** (`typescript-language-server` for TypeScript, `zubanls` for Python) provide type-checked symbol and call information
+2. **Combined edge strategies** — both `outgoingCalls` and `references` are used to maximize edge coverage across files
+3. **Tag scanner** reads `@lattice:` comments and associates them with the function below
 4. **Graph builder** inserts everything into a SQLite database with nodes, edges, and tags
-5. **Event synthesis** creates invisible edges from `@lattice:emits` to `@lattice:handles` nodes
-6. **Cross-file resolution** matches callee names to known symbols across the codebase
-7. **CLI queries** traverse the graph and return compact, scoped results
+5. **Event synthesis** creates invisible edges from `@lattice:emits` to `@lattice:handles` nodes, connecting async flows
+6. **CLI queries** traverse the graph and return compact, scoped results
 
 The graph is stored at `.lattice/graph.db` — a single SQLite file.
 
@@ -292,29 +333,24 @@ exclude = ["node_modules", "venv", ".git", "dist", "__pycache__"]
 [python]
 source_roots = ["src"]
 test_paths = ["tests"]
-frameworks = ["fastapi"]
 
 [typescript]
 source_roots = ["src"]
 test_paths = ["__tests__"]
-frameworks = ["express"]
 
 [lint]
 strict = false
 ignore = ["scripts/**"]
-
-[lint.boundaries]
-packages = ["stripe", "boto3", "psycopg2", "requests", "sendgrid"]
 ```
 
 ## Supported Languages
 
-| Language | Status | Frameworks |
-|----------|--------|------------|
-| Python | Supported | FastAPI, Flask, Django, Celery |
-| TypeScript | Supported | Express, NestJS, Next.js |
+| Language | LSP Server | Status |
+|----------|-----------|--------|
+| Python | [zuban](https://github.com/zubanls/zuban) | Supported |
+| TypeScript | typescript-language-server | Supported |
 
-Adding a new language requires implementing one extractor. The graph schema, CLI commands, linter, and output formatting are all language-agnostic.
+Adding a new language requires adding its LSP server to the defaults. The graph schema, CLI commands, linter, and output formatting are all language-agnostic.
 
 ## Agent Integration (Claude Code)
 
@@ -377,7 +413,8 @@ The hooks remind the agent to try Lattice before falling back to traditional too
 ## Requirements
 
 - [Bun](https://bun.sh) >= 1.0 (for development and compilation)
-- No runtime dependencies for the compiled binary (except WASM grammars in `node_modules/`)
+- For TypeScript: `npm install -g typescript-language-server typescript`
+- For Python: `pip install zuban`
 
 ## Development
 

@@ -114,7 +114,13 @@ function checkLspAvailability(languages: readonly string[]): readonly string[] {
 		const cmd = commands[lang];
 		if (!cmd) continue;
 		if (!Bun.which(cmd)) {
-			warnings.push(`Warning: ${cmd} not found. Install it before running 'lattice build'.`);
+			const installHint =
+				lang === "python"
+					? "pip install zuban"
+					: lang === "typescript"
+						? "npm install -g typescript-language-server typescript"
+						: `install ${cmd}`;
+			warnings.push(`Warning: ${cmd} not found. Run '${installHint}' before 'lattice build'.`);
 		}
 	}
 	return warnings;

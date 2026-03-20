@@ -24,7 +24,7 @@ const defaultConfig: LatticeConfig = {
 	languages: ["python"],
 	root: ".",
 	exclude: [],
-	python: { sourceRoots: ["."], testPaths: ["tests"], lspCommand: undefined },
+	python: { sourceRoots: ["."], testPaths: ["tests"] },
 	typescript: undefined,
 	lint: { strict: false, ignore: [] },
 };
@@ -105,8 +105,13 @@ describe("executeLint — orphaned events", () => {
 
 describe("executeLint — stale boundary tags", () => {
 	it("warns on boundary tag when function has no external calls", () => {
-		insertNodes(db, [makeNode({ id: "a::clean", name: "clean" })]);
+		insertNodes(db, [
+			makeNode({ id: "a::clean", name: "clean" }),
+			makeNode({ id: "b::other", name: "other" }),
+		]);
 		insertTags(db, [{ nodeId: "a::clean", kind: "boundary", value: "stripe" }]);
+		// Need at least one external call record for stale check to run
+		insertExternalCalls(db, [{ nodeId: "b::other", package: "axios", symbol: "get" }]);
 
 		const result = executeLint(db, defaultConfig);
 		const staleWarnings = result.issues.filter(

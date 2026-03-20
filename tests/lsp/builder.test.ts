@@ -11,7 +11,7 @@ describe("buildGraph", () => {
 		const result = await buildGraph({
 			projectRoot: FIXTURE_DIR,
 			db,
-			languageConfigs: [buildLanguageConfig("typescript", ["."], [], undefined)],
+			languageConfigs: [buildLanguageConfig("typescript", ["."], [])],
 			exclude: ["node_modules", ".git"],
 		});
 
@@ -43,7 +43,7 @@ describe("buildGraph", () => {
 		const result = await buildGraph({
 			projectRoot: "/nonexistent",
 			db,
-			languageConfigs: [buildLanguageConfig("typescript", ["."], [], undefined)],
+			languageConfigs: [buildLanguageConfig("typescript", ["."], [])],
 			exclude: [],
 		});
 

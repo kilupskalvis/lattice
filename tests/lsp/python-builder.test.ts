@@ -13,7 +13,7 @@ describe.skipIf(!hasZuban)("buildGraph — Python", () => {
 		const result = await buildGraph({
 			projectRoot: FIXTURE_DIR,
 			db,
-			languageConfigs: [buildLanguageConfig("python", ["."], [], undefined)],
+			languageConfigs: [buildLanguageConfig("python", ["."], [])],
 			exclude: ["__pycache__", ".git", "node_modules"],
 		});
 
@@ -49,7 +49,7 @@ describe.skipIf(!hasZuban)("buildGraph — Python", () => {
 		await buildGraph({
 			projectRoot: FIXTURE_DIR,
 			db,
-			languageConfigs: [buildLanguageConfig("python", ["."], [], undefined)],
+			languageConfigs: [buildLanguageConfig("python", ["."], [])],
 			exclude: ["__pycache__", ".git"],
 		});
 

@@ -24,7 +24,7 @@ const config: LatticeConfig = {
 	languages: ["python"],
 	root: ".",
 	exclude: [],
-	python: { sourceRoots: ["."], testPaths: ["tests"], lspCommand: undefined },
+	python: { sourceRoots: ["."], testPaths: ["tests"] },
 	typescript: undefined,
 	lint: { strict: false, ignore: [] },
 };
@@ -84,8 +84,9 @@ describe("executePopulate", () => {
 		const output = executePopulate(db, config);
 		expect(output).toContain("Step 1: Tag entry points");
 		expect(output).toContain("Step 2: Tag boundaries");
-		expect(output).toContain("Step 3: Tag events");
-		expect(output).toContain("Step 4: Rebuild and lint");
+		expect(output).toContain("Step 3: Tag async dispatch");
+		expect(output).toContain("Step 4: Tag events");
+		expect(output).toContain("Step 5: Rebuild and lint");
 		expect(output).toContain("Step 5: Verify flows");
 		expect(output).toContain("Step 6: Verify call trees");
 		expect(output).toContain("Step 7: Verify impact");

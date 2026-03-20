@@ -66,8 +66,15 @@ function checkTypos(db: Database, issues: LintIssue[]): void {
 	const commons = tagCounts.filter((t) => t.cnt > 1);
 
 	for (const single of singletons) {
+		// Require longer names for typo detection — short names like "s3" and "sqs" are distinct
+		const minLength = 4;
+		if (single.value.length < minLength) continue;
+
 		const similar = commons.filter(
-			(c) => c.kind === single.kind && editDistance(single.value, c.value) <= 2,
+			(c) =>
+				c.kind === single.kind &&
+				c.value.length >= minLength &&
+				editDistance(single.value, c.value) <= 2,
 		);
 		if (similar.length > 0) {
 			const bestMatch = similar[0];
@@ -141,6 +148,11 @@ function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
  * A boundary tag is stale if the function has no external calls recorded in the external_calls table.
  */
 function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
+	// Skip stale boundary check if no external call data is available
+	// (e.g., when the LSP server doesn't support outgoingCalls)
+	const hasAnyExternalCalls = db.query("SELECT 1 FROM external_calls LIMIT 1").get();
+	if (!hasAnyExternalCalls) return;
+
 	const boundaryTags = db
 		.query(
 			`SELECT t.node_id, t.value, n.name, n.file, n.line_start FROM tags t

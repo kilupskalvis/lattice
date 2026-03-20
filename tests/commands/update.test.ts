@@ -18,7 +18,6 @@ const config: LatticeConfig = {
 		sourceRoots: ["."],
 		testPaths: [],
 		tsconfig: undefined,
-		lspCommand: undefined,
 	},
 	lint: { strict: false, ignore: [] },
 };
