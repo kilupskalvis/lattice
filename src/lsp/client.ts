@@ -31,11 +31,7 @@ type LspClient = {
 	/** Returns outgoing calls from a call hierarchy item. */
 	outgoingCalls(item: CallHierarchyItem): Promise<readonly CallHierarchyOutgoingCall[]>;
 	/** Returns all reference locations for a symbol at a position. */
-	references(
-		filePath: string,
-		line: number,
-		character: number,
-	): Promise<readonly Location[]>;
+	references(filePath: string, line: number, character: number): Promise<readonly Location[]>;
 	/** Shuts down the language server and kills the process. */
 	shutdown(): Promise<void>;
 };

@@ -12,10 +12,7 @@ import {
 import type { Edge, ExternalCall, Node, Tag } from "../types/graph.ts";
 import { outgoingCallsToEdges } from "./calls.ts";
 import { createLspClient } from "./client.ts";
-import { type NodeWithPosition, documentSymbolsToNodesWithPositions } from "./symbols.ts";
-
-/** Strategy for extracting call edges from the LSP server. */
-type EdgeStrategy = "outgoingCalls" | "references";
+import { documentSymbolsToNodesWithPositions, type NodeWithPosition } from "./symbols.ts";
 
 /** Per-language extraction configuration. */
 type LanguageConfig = {
@@ -26,7 +23,6 @@ type LanguageConfig = {
 	readonly lspCommand: string;
 	readonly lspArgs: readonly string[];
 	readonly languageId: string;
-	readonly edgeStrategy: EdgeStrategy;
 };
 
 /** Options for building the graph. */
@@ -62,7 +58,8 @@ const DEFAULT_LSP: Record<
 /**
  * Builds the knowledge graph by querying LSP servers for symbols and call hierarchy,
  * scanning for @lattice: tags, and writing everything to SQLite.
- * Spawns one LSP server per language.
+ * Spawns one LSP server per language. Uses both outgoingCalls and references
+ * strategies to maximize edge coverage.
  *
  * @param opts - Build configuration
  * @returns Build statistics
@@ -126,24 +123,47 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 				fileDataList.push({ filePath, relativePath, nodesWithPos });
 			}
 
-			// Phase 2: extract edges using the configured strategy
-			if (langConfig.edgeStrategy === "references") {
-				// Build a lookup: for each file, sorted function ranges for mapping reference locations
-				const nodesByFile = new Map<string, readonly Node[]>();
-				for (const fd of fileDataList) {
-					nodesByFile.set(
-						fd.relativePath,
-						fd.nodesWithPos
-							.filter((nwp) => nwp.node.kind === "function" || nwp.node.kind === "method")
-							.map((nwp) => nwp.node),
-					);
+			// Phase 2a: outgoingCalls — "what does each function call?"
+			for (const fd of fileDataList) {
+				for (const nwp of fd.nodesWithPos) {
+					if (nwp.node.kind !== "function" && nwp.node.kind !== "method") continue;
+
+					try {
+						const items = await client.prepareCallHierarchy(
+							fd.filePath,
+							nwp.selectionLine,
+							nwp.selectionCharacter,
+						);
+						if (items.length === 0) continue;
+						const item = items[0];
+						if (!item) continue;
+
+						const calls = await client.outgoingCalls(item);
+						const { edges, externalCalls } = outgoingCallsToEdges(nwp.node.id, calls, projectRoot);
+						allEdges.push(...edges);
+						allExternalCalls.push(...externalCalls);
+					} catch {
+						// outgoingCalls not supported by this server — skip silently
+					}
 				}
+			}
 
-				// For each function/method, find who references it
-				for (const fd of fileDataList) {
-					for (const nwp of fd.nodesWithPos) {
-						if (nwp.node.kind !== "function" && nwp.node.kind !== "method") continue;
+			// Phase 2b: references — "who references each function?"
+			const nodesByFile = new Map<string, readonly Node[]>();
+			for (const fd of fileDataList) {
+				nodesByFile.set(
+					fd.relativePath,
+					fd.nodesWithPos
+						.filter((nwp) => nwp.node.kind === "function" || nwp.node.kind === "method")
+						.map((nwp) => nwp.node),
+				);
+			}
 
+			for (const fd of fileDataList) {
+				for (const nwp of fd.nodesWithPos) {
+					if (nwp.node.kind !== "function" && nwp.node.kind !== "method") continue;
+
+					try {
 						const refs = await client.references(
 							fd.filePath,
 							nwp.selectionLine,
@@ -156,11 +176,10 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 								: undefined;
 							if (!refFile) continue;
 
-							// Find which function contains this reference
 							const fileFunctions = nodesByFile.get(refFile);
 							if (!fileFunctions) continue;
 
-							const refLine = ref.range.start.line + 1; // LSP 0-based → 1-based
+							const refLine = ref.range.start.line + 1;
 							const caller = fileFunctions.find(
 								(n) => refLine >= n.lineStart && refLine <= n.lineEnd,
 							);
@@ -168,31 +187,8 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 
 							allEdges.push({ sourceId: caller.id, targetId: nwp.node.id, kind: "calls" });
 						}
-					}
-				}
-			} else {
-				// outgoingCalls strategy (TypeScript)
-				for (const fd of fileDataList) {
-					for (const nwp of fd.nodesWithPos) {
-						if (nwp.node.kind !== "function" && nwp.node.kind !== "method") continue;
-
-						const items = await client.prepareCallHierarchy(
-							fd.filePath,
-							nwp.selectionLine,
-							nwp.selectionCharacter,
-						);
-						if (items.length === 0) continue;
-						const item = items[0];
-						if (!item) continue;
-
-						const calls = await client.outgoingCalls(item);
-						const { edges, externalCalls } = outgoingCallsToEdges(
-							nwp.node.id,
-							calls,
-							projectRoot,
-						);
-						allEdges.push(...edges);
-						allExternalCalls.push(...externalCalls);
+					} catch {
+						// references not supported by this server — skip silently
 					}
 				}
 			}
@@ -238,7 +234,6 @@ function buildLanguageConfig(
 		lspCommand: lspCommand ?? defaults?.command ?? language,
 		lspArgs: lspCommand ? [] : (defaults?.args ?? []),
 		languageId: defaults?.languageId ?? language,
-		edgeStrategy: language === "python" ? "references" : "outgoingCalls",
 	};
 }
 

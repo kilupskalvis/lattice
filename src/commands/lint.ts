@@ -19,6 +19,8 @@ function executeLint(db: Database, _config: LatticeConfig): LintResult {
 	checkOrphanedEvents(db, issues);
 	checkStaleBoundaryTags(db, issues);
 	checkMissingBoundaryTags(db, issues);
+	checkDeadEndFlows(db, issues);
+	checkDisconnectedFunctions(db, issues);
 
 	const coverage = computeCoverage(db);
 
@@ -198,6 +200,89 @@ function checkMissingBoundaryTags(db: Database, issues: LintIssue[]): void {
 			line: row.line_start,
 			symbol: row.name,
 			message: `Function calls external package '${row.package}' but has no @lattice:boundary tag`,
+		});
+	}
+}
+
+/**
+ * Checks for flow entry points with zero callees — the flow tree is just the root node.
+ * This typically indicates dynamic dispatch, decorated functions, or missing event connections.
+ */
+function checkDeadEndFlows(db: Database, issues: LintIssue[]): void {
+	const flowEntries = db
+		.query(
+			`SELECT t.value AS flow_name, n.id, n.name, n.file, n.line_start
+			FROM tags t JOIN nodes n ON t.node_id = n.id
+			WHERE t.kind = 'flow'`,
+		)
+		.all() as {
+		flow_name: string;
+		id: string;
+		name: string;
+		file: string;
+		line_start: number;
+	}[];
+
+	for (const entry of flowEntries) {
+		const hasCallees = db
+			.query("SELECT 1 FROM edges WHERE source_id = ? AND kind IN ('calls', 'event') LIMIT 1")
+			.get(entry.id);
+
+		if (!hasCallees) {
+			issues.push({
+				severity: "warning",
+				file: entry.file,
+				line: entry.line_start,
+				symbol: entry.name,
+				message: `Flow "${entry.flow_name}" entry point has no callees — the call tree may be incomplete. If this function dispatches through a queue or dynamic dispatch, add @lattice:emits/@lattice:handles tags.`,
+			});
+		}
+	}
+}
+
+/**
+ * Checks for functions that have callees but are unreachable from any flow.
+ * These are likely worker handlers or event consumers that need flow/handles tags.
+ */
+function checkDisconnectedFunctions(db: Database, issues: LintIssue[]): void {
+	// Find functions with callees (they do work) that no flow can reach
+	const disconnected = db
+		.query(
+			`SELECT n.id, n.name, n.file, n.line_start,
+				(SELECT COUNT(*) FROM edges WHERE source_id = n.id AND kind IN ('calls', 'event')) as callee_count
+			FROM nodes n
+			WHERE n.kind IN ('function', 'method')
+			AND n.is_test = 0
+			AND NOT EXISTS (SELECT 1 FROM tags WHERE node_id = n.id)
+			AND EXISTS (SELECT 1 FROM edges WHERE source_id = n.id AND kind IN ('calls', 'event'))
+			AND NOT EXISTS (
+				WITH RECURSIVE flow_reachable AS (
+					SELECT node_id AS id FROM tags WHERE kind = 'flow'
+					UNION
+					SELECT e.target_id FROM edges e
+					JOIN flow_reachable fr ON e.source_id = fr.id
+					WHERE e.kind IN ('calls', 'event')
+				)
+				SELECT 1 FROM flow_reachable WHERE id = n.id
+			)`,
+		)
+		.all() as {
+		id: string;
+		name: string;
+		file: string;
+		line_start: number;
+		callee_count: number;
+	}[];
+
+	// Only report functions with 3+ callees to reduce noise
+	for (const fn of disconnected) {
+		if (fn.callee_count < 3) continue;
+		issues.push({
+			severity: "info",
+			file: fn.file,
+			line: fn.line_start,
+			symbol: fn.name,
+			message: `Function has ${fn.callee_count} callees but is unreachable from any flow. Consider adding @lattice:flow or @lattice:handles tag.`,
 		});
 	}
 }
