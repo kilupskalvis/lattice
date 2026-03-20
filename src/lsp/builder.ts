@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
-import { relative, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { scanTags } from "../extract/tag-scanner.ts";
 import { discoverFiles } from "../files.ts";
 import {
@@ -39,18 +40,30 @@ type BuildStats = {
 	readonly durationMs: number;
 };
 
-/** Default LSP server commands per language. */
-const DEFAULT_LSP: Record<
-	string,
-	{ command: string; args: readonly string[]; languageId: string }
-> = {
-	typescript: {
-		command: "typescript-language-server",
-		args: ["--stdio"],
-		languageId: "typescript",
-	},
-	python: { command: "zubanls", args: [], languageId: "python" },
-};
+/** Resolves the LSP server binary for a language, checking bundled paths first. */
+function resolveLspServer(
+	language: string,
+): { command: string; args: readonly string[]; languageId: string } | undefined {
+	if (language === "typescript") {
+		// Check node_modules/.bin/ first (bundled with lattice-graph)
+		const bundled = join(
+			import.meta.dir,
+			"..",
+			"..",
+			"node_modules",
+			".bin",
+			"typescript-language-server",
+		);
+		const command = existsSync(bundled) ? bundled : "typescript-language-server";
+		return { command, args: ["--stdio"], languageId: "typescript" };
+	}
+	if (language === "python") {
+		const bundled = join(import.meta.dir, "..", "..", "vendor", "venv", "bin", "zubanls");
+		const command = existsSync(bundled) ? bundled : "zubanls";
+		return { command, args: [], languageId: "python" };
+	}
+	return undefined;
+}
 
 /**
  * Builds the knowledge graph by querying LSP servers for symbols and call hierarchy,
@@ -81,7 +94,7 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 		if (files.length === 0) continue;
 		totalFiles += files.length;
 
-		const lsp = DEFAULT_LSP[langConfig.language];
+		const lsp = resolveLspServer(langConfig.language);
 		if (!lsp) continue;
 
 		const client = await createLspClient({

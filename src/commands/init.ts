@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { err, ok, type Result } from "../types/result.ts";
 
 /**
@@ -102,25 +102,29 @@ function generateToml(languages: readonly string[], root: string): string {
 	return lines.join("\n");
 }
 
-/** Checks if language server binaries are available. */
+/** Checks if language server binaries are available (bundled or in PATH). */
 function checkLspAvailability(languages: readonly string[]): readonly string[] {
 	const warnings: string[] = [];
-	const commands: Record<string, string> = {
-		typescript: "typescript-language-server",
-		python: "zubanls",
-		go: "gopls",
+	const latticeRoot = resolve(import.meta.dir, "..", "..");
+
+	const checks: Record<string, { bundled: string; system: string; install: string }> = {
+		typescript: {
+			bundled: join(latticeRoot, "node_modules", ".bin", "typescript-language-server"),
+			system: "typescript-language-server",
+			install: "reinstall lattice-graph",
+		},
+		python: {
+			bundled: join(latticeRoot, "vendor", "venv", "bin", "zubanls"),
+			system: "zubanls",
+			install: "reinstall lattice-graph (or pip install zuban)",
+		},
 	};
+
 	for (const lang of languages) {
-		const cmd = commands[lang];
-		if (!cmd) continue;
-		if (!Bun.which(cmd)) {
-			const installHint =
-				lang === "python"
-					? "pip install zuban"
-					: lang === "typescript"
-						? "npm install -g typescript-language-server typescript"
-						: `install ${cmd}`;
-			warnings.push(`Warning: ${cmd} not found. Run '${installHint}' before 'lattice build'.`);
+		const check = checks[lang];
+		if (!check) continue;
+		if (!existsSync(check.bundled) && !Bun.which(check.system)) {
+			warnings.push(`Warning: ${check.system} not found. ${check.install}`);
 		}
 	}
 	return warnings;

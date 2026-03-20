@@ -9,10 +9,12 @@
 	},
 	"files": [
 		"src",
+		"scripts",
 		"README.md",
 		"LICENSE"
 	],
 	"scripts": {
+		"postinstall": "bun scripts/postinstall.ts",
 		"dev": "bun src/main.ts",
 		"test": "bun test",
 		"lint": "bunx biome check src/ tests/",
@@ -44,11 +46,10 @@
 		"@types/bun": "latest",
 		"lefthook": "^2.1.4"
 	},
-	"peerDependencies": {
-		"typescript": "^5"
-	},
 	"dependencies": {
 		"commander": "^14.0.3",
-		"smol-toml": "^1.6.0"
+		"smol-toml": "^1.6.0",
+		"typescript": "^5",
+		"typescript-language-server": "^4"
 	}
 }

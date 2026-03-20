@@ -1,5 +1,7 @@
 node_modules
 dist
+bin
+vendor
 .lattice
 lattice
 .claude/projects
