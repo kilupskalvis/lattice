@@ -2,11 +2,7 @@ import type { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { executeLint } from "../../src/commands/lint.ts";
 import { createDatabase } from "../../src/graph/database.ts";
-import {
-	insertExternalCalls,
-	insertNodes,
-	insertTags,
-} from "../../src/graph/writer.ts";
+import { insertExternalCalls, insertNodes, insertTags } from "../../src/graph/writer.ts";
 import type { LatticeConfig } from "../../src/types/config.ts";
 import type { Node } from "../../src/types/graph.ts";
 
@@ -122,9 +118,7 @@ describe("executeLint — stale boundary tags", () => {
 	it("does not warn when external calls exist", () => {
 		insertNodes(db, [makeNode({ id: "a::charge", name: "charge" })]);
 		insertTags(db, [{ nodeId: "a::charge", kind: "boundary", value: "stripe" }]);
-		insertExternalCalls(db, [
-			{ nodeId: "a::charge", package: "stripe", symbol: "charges.create" },
-		]);
+		insertExternalCalls(db, [{ nodeId: "a::charge", package: "stripe", symbol: "charges.create" }]);
 
 		const result = executeLint(db, defaultConfig);
 		const staleWarnings = result.issues.filter(
@@ -137,14 +131,11 @@ describe("executeLint — stale boundary tags", () => {
 describe("executeLint — missing boundary tags", () => {
 	it("warns when function calls external package but has no boundary tag", () => {
 		insertNodes(db, [makeNode({ id: "a::pay", name: "pay" })]);
-		insertExternalCalls(db, [
-			{ nodeId: "a::pay", package: "stripe", symbol: "charges.create" },
-		]);
+		insertExternalCalls(db, [{ nodeId: "a::pay", package: "stripe", symbol: "charges.create" }]);
 
 		const result = executeLint(db, defaultConfig);
 		const missingWarnings = result.issues.filter(
-			(i) =>
-				i.severity === "warning" && i.message.includes("no @lattice:boundary tag"),
+			(i) => i.severity === "warning" && i.message.includes("no @lattice:boundary tag"),
 		);
 		expect(missingWarnings.length).toBeGreaterThan(0);
 	});
@@ -152,14 +143,11 @@ describe("executeLint — missing boundary tags", () => {
 	it("does not warn when boundary tag exists", () => {
 		insertNodes(db, [makeNode({ id: "a::pay", name: "pay" })]);
 		insertTags(db, [{ nodeId: "a::pay", kind: "boundary", value: "stripe" }]);
-		insertExternalCalls(db, [
-			{ nodeId: "a::pay", package: "stripe", symbol: "charges.create" },
-		]);
+		insertExternalCalls(db, [{ nodeId: "a::pay", package: "stripe", symbol: "charges.create" }]);
 
 		const result = executeLint(db, defaultConfig);
 		const missingWarnings = result.issues.filter(
-			(i) =>
-				i.severity === "warning" && i.message.includes("no @lattice:boundary tag"),
+			(i) => i.severity === "warning" && i.message.includes("no @lattice:boundary tag"),
 		);
 		expect(missingWarnings.length).toBe(0);
 	});
@@ -175,9 +163,7 @@ describe("executeLint — clean codebase", () => {
 			{ nodeId: "a::handler", kind: "flow", value: "checkout" },
 			{ nodeId: "b::charge", kind: "boundary", value: "stripe" },
 		]);
-		insertExternalCalls(db, [
-			{ nodeId: "b::charge", package: "stripe", symbol: "charges.create" },
-		]);
+		insertExternalCalls(db, [{ nodeId: "b::charge", package: "stripe", symbol: "charges.create" }]);
 
 		const result = executeLint(db, defaultConfig);
 		const errors = result.issues.filter((i) => i.severity === "error");

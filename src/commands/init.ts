@@ -16,16 +16,22 @@ function executeInit(projectRoot: string): Result<string, string> {
 		const latticeDir = join(projectRoot, ".lattice");
 		mkdirSync(latticeDir, { recursive: true });
 
+		// Detect languages
+		const languages = detectLanguages(projectRoot);
+
 		// Generate lattice.toml if it doesn't exist
 		const tomlPath = join(projectRoot, "lattice.toml");
 		if (!existsSync(tomlPath)) {
-			const languages = detectLanguages(projectRoot);
 			const root = detectRoot(projectRoot);
 			const toml = generateToml(languages, root);
 			writeFileSync(tomlPath, toml);
 		}
 
-		return ok("Initialized Lattice project");
+		// Check LSP server availability
+		const warnings = checkLspAvailability(languages);
+		const message = ["Initialized Lattice project", ...warnings].join("\n");
+
+		return ok(message);
 	} catch (error) {
 		return err(`Init failed: ${error instanceof Error ? error.message : String(error)}`);
 	}
@@ -94,6 +100,24 @@ function generateToml(languages: readonly string[], root: string): string {
 	lines.push("[lint]", "strict = false", "ignore = []", "");
 
 	return lines.join("\n");
+}
+
+/** Checks if language server binaries are available. */
+function checkLspAvailability(languages: readonly string[]): readonly string[] {
+	const warnings: string[] = [];
+	const commands: Record<string, string> = {
+		typescript: "typescript-language-server",
+		python: "pyright-langserver",
+		go: "gopls",
+	};
+	for (const lang of languages) {
+		const cmd = commands[lang];
+		if (!cmd) continue;
+		if (!Bun.which(cmd)) {
+			warnings.push(`Warning: ${cmd} not found. Install it before running 'lattice build'.`);
+		}
+	}
+	return warnings;
 }
 
 export { executeInit };

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { extractPackageName, outgoingCallsToEdges } from "../../src/lsp/calls.ts";
-import { SymbolKind, type CallHierarchyOutgoingCall } from "../../src/lsp/types.ts";
+import { type CallHierarchyOutgoingCall, SymbolKind } from "../../src/lsp/types.ts";
 
 describe("outgoingCallsToEdges", () => {
 	const projectRoot = "/project";
@@ -78,9 +78,9 @@ describe("extractPackageName", () => {
 	});
 
 	test("extracts scoped package name", () => {
-		expect(
-			extractPackageName("file:///project/node_modules/@anthropic-ai/sdk/index.d.ts"),
-		).toBe("@anthropic-ai/sdk");
+		expect(extractPackageName("file:///project/node_modules/@anthropic-ai/sdk/index.d.ts")).toBe(
+			"@anthropic-ai/sdk",
+		);
 	});
 
 	test("returns undefined for non-node_modules path", () => {

@@ -1,5 +1,5 @@
 import type { Node, NodeKind } from "../types/graph.ts";
-import { SymbolKind, type DocumentSymbol } from "./types.ts";
+import { type DocumentSymbol, SymbolKind } from "./types.ts";
 
 /**
  * Converts LSP DocumentSymbol responses into Lattice Node objects.
@@ -57,14 +57,7 @@ function flattenSymbols(
 		});
 
 		if (sym.children) {
-			flattenSymbols(
-				sym.children,
-				filePath,
-				language,
-				isTest,
-				[...parentNames, sym.name],
-				results,
-			);
+			flattenSymbols(sym.children, filePath, language, isTest, [...parentNames, sym.name], results);
 		}
 	}
 }
@@ -112,14 +105,7 @@ function flattenSymbolsWithPositions(
 		const kind = symbolKindToNodeKind(sym.kind);
 		if (!kind) {
 			if (sym.children) {
-				flattenSymbolsWithPositions(
-					sym.children,
-					filePath,
-					language,
-					isTest,
-					parentNames,
-					results,
-				);
+				flattenSymbolsWithPositions(sym.children, filePath, language, isTest, parentNames, results);
 			}
 			continue;
 		}

@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -26,22 +26,29 @@ function discoverFiles(
 	exclude: readonly string[],
 ): readonly string[] {
 	const files: string[] = [];
+
 	function walk(dir: string): void {
-		let entries: ReturnType<typeof readdirSync>;
+		let names: string[];
 		try {
-			entries = readdirSync(dir, { withFileTypes: true });
+			names = readdirSync(dir) as string[];
 		} catch {
 			return;
 		}
-		for (const entry of entries) {
-			const fullPath = join(dir, entry.name);
-			if (entry.isDirectory()) {
-				if (!isExcluded(entry.name, exclude)) walk(fullPath);
-			} else if (extensions.some((ext) => entry.name.endsWith(ext))) {
-				files.push(fullPath);
+		for (const name of names) {
+			const fullPath = join(dir, name);
+			try {
+				const stat = statSync(fullPath);
+				if (stat.isDirectory()) {
+					if (!isExcluded(name, exclude)) walk(fullPath);
+				} else if (extensions.some((ext) => name.endsWith(ext))) {
+					files.push(fullPath);
+				}
+			} catch {
+				// skip inaccessible files
 			}
 		}
 	}
+
 	walk(root);
 	return files;
 }

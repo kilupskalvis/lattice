@@ -87,9 +87,7 @@ function handler() {}`;
 		const source = `// @lattice:unknown value
 function foo() {}`;
 
-		const nodes: Node[] = [
-			makeNode({ id: "a.ts::foo", name: "foo", lineStart: 2, lineEnd: 2 }),
-		];
+		const nodes: Node[] = [makeNode({ id: "a.ts::foo", name: "foo", lineStart: 2, lineEnd: 2 })];
 
 		const result = scanTags(source, nodes);
 		expect(result.tags).toHaveLength(0);
@@ -101,9 +99,7 @@ function foo() {}`;
 		const source = `// @lattice:flow Invalid Name
 function foo() {}`;
 
-		const nodes: Node[] = [
-			makeNode({ id: "a.ts::foo", name: "foo", lineStart: 2, lineEnd: 2 }),
-		];
+		const nodes: Node[] = [makeNode({ id: "a.ts::foo", name: "foo", lineStart: 2, lineEnd: 2 })];
 
 		const result = scanTags(source, nodes);
 		expect(result.tags).toHaveLength(0);

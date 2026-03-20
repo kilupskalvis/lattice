@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { documentSymbolsToNodes } from "../../src/lsp/symbols.ts";
-import { SymbolKind, type DocumentSymbol } from "../../src/lsp/types.ts";
+import { type DocumentSymbol, SymbolKind } from "../../src/lsp/types.ts";
 
 describe("documentSymbolsToNodes", () => {
 	test("converts top-level functions", () => {
@@ -48,9 +48,7 @@ describe("documentSymbolsToNodes", () => {
 		];
 		const nodes = documentSymbolsToNodes(symbols, "src/service.ts", "typescript", false);
 		expect(nodes).toHaveLength(2);
-		expect(nodes.find((n) => n.name === "myMethod")?.id).toBe(
-			"src/service.ts::MyClass.myMethod",
-		);
+		expect(nodes.find((n) => n.name === "myMethod")?.id).toBe("src/service.ts::MyClass.myMethod");
 	});
 
 	test("converts interfaces as type nodes", () => {

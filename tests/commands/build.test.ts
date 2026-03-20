@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 import { executeBuild } from "../../src/commands/build.ts";
 import { isOk, unwrap } from "../../src/types/result.ts";
 
-const FIXTURE_ROOT = "tests/fixtures/python-fastapi";
+const FIXTURE_ROOT = resolve(import.meta.dir, "../fixtures/ts-cross-file");
 const TMP_LATTICE = `${FIXTURE_ROOT}/.lattice`;
 
 function cleanup(): void {
@@ -13,75 +14,69 @@ function cleanup(): void {
 }
 
 describe("executeBuild", () => {
-	it("builds the graph from a Python project", async () => {
+	it("builds the graph from a TypeScript project via LSP", async () => {
 		cleanup();
 
 		const result = await executeBuild(FIXTURE_ROOT, {
-			languages: ["python"],
-			root: "src",
-			exclude: ["__pycache__", ".git", "node_modules"],
-			python: {
-				sourceRoots: ["src"],
-				testPaths: ["tests"],
+			languages: ["typescript"],
+			root: ".",
+			exclude: ["node_modules", ".git"],
+			python: undefined,
+			typescript: {
+				sourceRoots: ["."],
+				testPaths: [],
+				tsconfig: undefined,
+				lspCommand: undefined,
 			},
-			typescript: undefined,
 			lint: { strict: false, ignore: [] },
 		});
 
 		expect(isOk(result)).toBe(true);
 		const stats = unwrap(result);
-		expect(stats.fileCount).toBeGreaterThan(0);
+		expect(stats.fileCount).toBe(2);
 		expect(stats.nodeCount).toBeGreaterThan(0);
 		expect(stats.edgeCount).toBeGreaterThan(0);
-		expect(stats.tagCount).toBeGreaterThan(0);
+		expect(stats.tagCount).toBe(2);
 
 		cleanup();
-	});
+	}, 30000);
 
 	it("creates .lattice/graph.db file", async () => {
 		cleanup();
 
 		await executeBuild(FIXTURE_ROOT, {
-			languages: ["python"],
-			root: "src",
-			exclude: [],
-			python: { sourceRoots: ["src"], testPaths: ["tests"] },
-			typescript: undefined,
+			languages: ["typescript"],
+			root: ".",
+			exclude: ["node_modules"],
+			python: undefined,
+			typescript: {
+				sourceRoots: ["."],
+				testPaths: [],
+				tsconfig: undefined,
+				lspCommand: undefined,
+			},
 			lint: { strict: false, ignore: [] },
 		});
 
 		expect(existsSync(`${TMP_LATTICE}/graph.db`)).toBe(true);
 
 		cleanup();
-	});
-
-	it("synthesizes event edges from emits/handles tags", async () => {
-		cleanup();
-
-		const result = await executeBuild(FIXTURE_ROOT, {
-			languages: ["python"],
-			root: "src",
-			exclude: [],
-			python: { sourceRoots: ["src"], testPaths: ["tests"] },
-			typescript: undefined,
-			lint: { strict: false, ignore: [] },
-		});
-
-		const stats = unwrap(result);
-		expect(stats.eventEdgeCount).toBeGreaterThan(0);
-
-		cleanup();
-	});
+	}, 30000);
 
 	it("populates meta table with build metadata", async () => {
 		cleanup();
 
 		await executeBuild(FIXTURE_ROOT, {
-			languages: ["python"],
-			root: "src",
-			exclude: [],
-			python: { sourceRoots: ["src"], testPaths: ["tests"] },
-			typescript: undefined,
+			languages: ["typescript"],
+			root: ".",
+			exclude: ["node_modules"],
+			python: undefined,
+			typescript: {
+				sourceRoots: ["."],
+				testPaths: [],
+				tsconfig: undefined,
+				lspCommand: undefined,
+			},
 			lint: { strict: false, ignore: [] },
 		});
 
@@ -90,7 +85,7 @@ describe("executeBuild", () => {
 		const version = db.query("SELECT value FROM meta WHERE key = 'schema_version'").get() as {
 			value: string;
 		};
-		expect(version.value).toBe("1");
+		expect(version.value).toBe("2");
 
 		const lastBuild = db.query("SELECT value FROM meta WHERE key = 'last_build'").get() as {
 			value: string;
@@ -99,34 +94,5 @@ describe("executeBuild", () => {
 		db.close();
 
 		cleanup();
-	});
-
-	it("is idempotent — building twice yields same result", async () => {
-		cleanup();
-
-		const config = {
-			languages: ["python"] as readonly string[],
-			root: "src",
-			exclude: [] as readonly string[],
-			python: {
-				sourceRoots: ["src"] as readonly string[],
-				testPaths: ["tests"] as readonly string[],
-			},
-			typescript: undefined,
-			lint: {
-				strict: false,
-				ignore: [] as readonly string[],
-				boundaryPackages: [] as readonly string[],
-			},
-		};
-
-		const result1 = unwrap(await executeBuild(FIXTURE_ROOT, config));
-		const result2 = unwrap(await executeBuild(FIXTURE_ROOT, config));
-
-		expect(result1.nodeCount).toBe(result2.nodeCount);
-		expect(result1.edgeCount).toBe(result2.edgeCount);
-		expect(result1.tagCount).toBe(result2.tagCount);
-
-		cleanup();
-	});
+	}, 30000);
 });

@@ -115,27 +115,27 @@ function buildTestGraph(db: Database): void {
 			sourceId: "src/routes.py::handle_checkout",
 			targetId: "src/services.py::create_order",
 			kind: "calls",
-					},
+		},
 		{
 			sourceId: "src/services.py::create_order",
 			targetId: "src/gateways.py::charge",
 			kind: "calls",
-					},
+		},
 		{
 			sourceId: "src/services.py::create_order",
 			targetId: "src/db.py::save_order",
 			kind: "calls",
-					},
+		},
 		{
 			sourceId: "src/services.py::create_order",
 			targetId: "src/services.py::emit_created",
 			kind: "calls",
-					},
+		},
 		{
 			sourceId: "tests/test_charge.py::test_charge",
 			targetId: "src/gateways.py::charge",
 			kind: "calls",
-					},
+		},
 	];
 
 	const tags: Tag[] = [
@@ -338,7 +338,7 @@ describe("findAllPaths", () => {
 				sourceId: "src/gateways.py::charge",
 				targetId: "src/routes.py::handle_checkout",
 				kind: "calls",
-							},
+			},
 		]);
 		const paths = findAllPaths(db, "src/routes.py::handle_checkout", "src/gateways.py::charge");
 		expect(paths.length).toBeGreaterThan(0);

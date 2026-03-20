@@ -1,9 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { relative, resolve } from "node:path";
-import { createLspClient } from "./client.ts";
-import { documentSymbolsToNodesWithPositions } from "./symbols.ts";
-import { outgoingCallsToEdges } from "./calls.ts";
 import { scanTags } from "../extract/tag-scanner.ts";
+import { discoverFiles } from "../files.ts";
 import {
 	insertEdges,
 	insertExternalCalls,
@@ -11,9 +9,10 @@ import {
 	insertTags,
 	synthesizeEventEdges,
 } from "../graph/writer.ts";
-import { discoverFiles } from "../files.ts";
 import type { Edge, ExternalCall, Node, Tag } from "../types/graph.ts";
-
+import { outgoingCallsToEdges } from "./calls.ts";
+import { createLspClient } from "./client.ts";
+import { documentSymbolsToNodesWithPositions } from "./symbols.ts";
 
 /** Options for building the graph. */
 type BuildGraphOptions = {
@@ -103,11 +102,7 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 				if (!item) continue;
 
 				const calls = await client.outgoingCalls(item);
-				const { edges, externalCalls } = outgoingCallsToEdges(
-					nwp.node.id,
-					calls,
-					projectRoot,
-				);
+				const { edges, externalCalls } = outgoingCallsToEdges(nwp.node.id, calls, projectRoot);
 				allEdges.push(...edges);
 				allExternalCalls.push(...externalCalls);
 			}
@@ -136,4 +131,4 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 	}
 }
 
-export { buildGraph, type BuildGraphOptions, type BuildStats };
+export { type BuildGraphOptions, type BuildStats, buildGraph };

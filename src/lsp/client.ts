@@ -1,5 +1,5 @@
+import { type ChildProcess, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { spawn, type ChildProcess } from "node:child_process";
 import type {
 	CallHierarchyItem,
 	CallHierarchyOutgoingCall,
@@ -169,9 +169,7 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 			return (result as readonly CallHierarchyItem[]) ?? [];
 		},
 
-		async outgoingCalls(
-			item: CallHierarchyItem,
-		): Promise<readonly CallHierarchyOutgoingCall[]> {
+		async outgoingCalls(item: CallHierarchyItem): Promise<readonly CallHierarchyOutgoingCall[]> {
 			const result = await sendRequest("callHierarchy/outgoingCalls", { item });
 			return (result as readonly CallHierarchyOutgoingCall[]) ?? [];
 		},

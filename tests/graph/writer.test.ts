@@ -63,9 +63,7 @@ describe("insertEdges", () => {
 			makeNode({ id: "a::foo", name: "foo" }),
 			makeNode({ id: "b::bar", name: "bar" }),
 		]);
-		const edges: readonly Edge[] = [
-			{ sourceId: "a::foo", targetId: "b::bar", kind: "calls" },
-		];
+		const edges: readonly Edge[] = [{ sourceId: "a::foo", targetId: "b::bar", kind: "calls" }];
 		insertEdges(db, edges);
 		const count = db.query("SELECT COUNT(*) as c FROM edges").get() as { c: number };
 		expect(count.c).toBe(1);
@@ -111,9 +109,7 @@ describe("deleteFileData", () => {
 		]);
 		insertEdges(db, [{ sourceId: "a::foo", targetId: "b::bar", kind: "calls" }]);
 		insertTags(db, [{ nodeId: "a::foo", kind: "flow", value: "checkout" }]);
-		insertExternalCalls(db, [
-			{ nodeId: "a::foo", package: "stripe", symbol: "charges.create" },
-		]);
+		insertExternalCalls(db, [{ nodeId: "a::foo", package: "stripe", symbol: "charges.create" }]);
 
 		deleteFileData(db, "a.py");
 

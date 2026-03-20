@@ -52,9 +52,7 @@ function scanTags(source: string, nodes: readonly Node[]): TagScanResult {
 
 		for (const value of values) {
 			if (!NAME_PATTERN.test(value)) {
-				errors.push(
-					`Line ${tagLine}: invalid tag name '${value}' — must be lowercase kebab-case`,
-				);
+				errors.push(`Line ${tagLine}: invalid tag name '${value}' — must be lowercase kebab-case`);
 				continue;
 			}
 
