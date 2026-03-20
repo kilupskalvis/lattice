@@ -12,8 +12,30 @@ describe("createDatabase", () => {
 		expect(tableNames).toContain("nodes");
 		expect(tableNames).toContain("edges");
 		expect(tableNames).toContain("tags");
-		expect(tableNames).toContain("unresolved");
+		expect(tableNames).toContain("external_calls");
 		expect(tableNames).toContain("meta");
+		expect(tableNames).not.toContain("unresolved");
+		db.close();
+	});
+
+	it("edges table has no certainty column", () => {
+		const db = createDatabase(":memory:");
+		const cols = db.query("PRAGMA table_info(edges)").all() as { name: string }[];
+		const colNames = cols.map((c) => c.name);
+		expect(colNames).toContain("source_id");
+		expect(colNames).toContain("target_id");
+		expect(colNames).toContain("kind");
+		expect(colNames).not.toContain("certainty");
+		db.close();
+	});
+
+	it("external_calls table has correct columns", () => {
+		const db = createDatabase(":memory:");
+		const cols = db.query("PRAGMA table_info(external_calls)").all() as { name: string }[];
+		const colNames = cols.map((c) => c.name);
+		expect(colNames).toContain("node_id");
+		expect(colNames).toContain("package");
+		expect(colNames).toContain("symbol");
 		db.close();
 	});
 
@@ -37,7 +59,7 @@ describe("createDatabase", () => {
 			value: string;
 		} | null;
 		expect(row).not.toBeNull();
-		expect(row?.value).toBe("1");
+		expect(row?.value).toBe("2");
 		db.close();
 	});
 
@@ -56,7 +78,6 @@ describe("createDatabase", () => {
 			db.close();
 		} finally {
 			try {
-				Bun.file(tmp).exists();
 				const { unlinkSync } = require("node:fs");
 				unlinkSync(tmp);
 				unlinkSync(`${tmp}-shm`);

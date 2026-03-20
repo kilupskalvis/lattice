@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { err, ok, type Result } from "../types/result.ts";
 
-const SCHEMA_VERSION = "1";
+const SCHEMA_VERSION = "2";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS nodes (
@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS edges (
 	source_id   TEXT NOT NULL,
 	target_id   TEXT NOT NULL,
 	kind        TEXT NOT NULL,
-	certainty   TEXT DEFAULT 'certain',
 	PRIMARY KEY (source_id, target_id, kind)
 );
 
@@ -32,12 +31,11 @@ CREATE TABLE IF NOT EXISTS tags (
 	PRIMARY KEY (node_id, kind, value)
 );
 
-CREATE TABLE IF NOT EXISTS unresolved (
-	file        TEXT NOT NULL,
-	line        INTEGER NOT NULL,
-	expression  TEXT NOT NULL,
-	reason      TEXT NOT NULL,
-	PRIMARY KEY (file, line, expression)
+CREATE TABLE IF NOT EXISTS external_calls (
+	node_id     TEXT NOT NULL,
+	package     TEXT NOT NULL,
+	symbol      TEXT NOT NULL,
+	PRIMARY KEY (node_id, package, symbol)
 );
 
 CREATE TABLE IF NOT EXISTS meta (

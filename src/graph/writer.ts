@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { Edge, Node, Tag, UnresolvedReference } from "../types/graph.ts";
+import type { Edge, ExternalCall, Node, Tag } from "../types/graph.ts";
 
 /**
  * Inserts nodes into the graph database.
@@ -40,11 +40,11 @@ function insertNodes(db: Database, nodes: readonly Node[]): void {
  */
 function insertEdges(db: Database, edges: readonly Edge[]): void {
 	const stmt = db.prepare(
-		"INSERT OR IGNORE INTO edges (source_id, target_id, kind, certainty) VALUES (?, ?, ?, ?)",
+		"INSERT OR IGNORE INTO edges (source_id, target_id, kind) VALUES (?, ?, ?)",
 	);
 	const tx = db.transaction(() => {
 		for (const edge of edges) {
-			stmt.run(edge.sourceId, edge.targetId, edge.kind, edge.certainty);
+			stmt.run(edge.sourceId, edge.targetId, edge.kind);
 		}
 	});
 	tx();
@@ -68,26 +68,26 @@ function insertTags(db: Database, tags: readonly Tag[]): void {
 }
 
 /**
- * Inserts unresolved references into the database.
+ * Inserts external call records for lint boundary detection.
  * Uses INSERT OR IGNORE to skip duplicates.
  *
  * @param db - An open Database handle
- * @param refs - Unresolved references to insert
+ * @param calls - External calls to insert
  */
-function insertUnresolved(db: Database, refs: readonly UnresolvedReference[]): void {
+function insertExternalCalls(db: Database, calls: readonly ExternalCall[]): void {
 	const stmt = db.prepare(
-		"INSERT OR IGNORE INTO unresolved (file, line, expression, reason) VALUES (?, ?, ?, ?)",
+		"INSERT OR IGNORE INTO external_calls (node_id, package, symbol) VALUES (?, ?, ?)",
 	);
 	const tx = db.transaction(() => {
-		for (const ref of refs) {
-			stmt.run(ref.file, ref.line, ref.expression, ref.reason);
+		for (const call of calls) {
+			stmt.run(call.nodeId, call.package, call.symbol);
 		}
 	});
 	tx();
 }
 
 /**
- * Deletes all nodes, edges, tags, and unresolved references for a given file.
+ * Deletes all nodes, edges, tags, and external calls for a given file.
  * Edges where the file's nodes are either source or target are removed.
  *
  * @param db - An open Database handle
@@ -95,23 +95,19 @@ function insertUnresolved(db: Database, refs: readonly UnresolvedReference[]): v
  */
 function deleteFileData(db: Database, file: string): void {
 	const tx = db.transaction(() => {
-		// Get node IDs for this file
-		const nodeIds = db.query("SELECT id FROM nodes WHERE file = ?").all(file) as { id: string }[];
+		const nodeIds = db.query("SELECT id FROM nodes WHERE file = ?").all(file) as {
+			id: string;
+		}[];
 		const ids = nodeIds.map((n) => n.id);
 
 		if (ids.length > 0) {
 			const placeholders = ids.map(() => "?").join(",");
-			// Delete tags for these nodes
 			db.run(`DELETE FROM tags WHERE node_id IN (${placeholders})`, ids);
-			// Delete edges where these nodes are source or target
 			db.run(`DELETE FROM edges WHERE source_id IN (${placeholders})`, ids);
 			db.run(`DELETE FROM edges WHERE target_id IN (${placeholders})`, ids);
-			// Delete the nodes themselves
+			db.run(`DELETE FROM external_calls WHERE node_id IN (${placeholders})`, ids);
 			db.run(`DELETE FROM nodes WHERE id IN (${placeholders})`, ids);
 		}
-
-		// Delete unresolved references for this file
-		db.run("DELETE FROM unresolved WHERE file = ?", [file]);
 	});
 	tx();
 }
@@ -127,8 +123,8 @@ function synthesizeEventEdges(db: Database): void {
 	const tx = db.transaction(() => {
 		db.run("DELETE FROM edges WHERE kind = 'event'");
 		db.run(`
-			INSERT OR IGNORE INTO edges (source_id, target_id, kind, certainty)
-			SELECT e.node_id, h.node_id, 'event', 'certain'
+			INSERT OR IGNORE INTO edges (source_id, target_id, kind)
+			SELECT e.node_id, h.node_id, 'event'
 			FROM tags e
 			JOIN tags h ON e.value = h.value
 			WHERE e.kind = 'emits' AND h.kind = 'handles'
@@ -140,8 +136,8 @@ function synthesizeEventEdges(db: Database): void {
 export {
 	deleteFileData,
 	insertEdges,
+	insertExternalCalls,
 	insertNodes,
 	insertTags,
-	insertUnresolved,
 	synthesizeEventEdges,
 };

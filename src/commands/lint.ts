@@ -7,8 +7,8 @@ import type { LintIssue, LintResult } from "../types/lint.ts";
  * Does not modify the database — reports only.
  *
  * @param db - An open Database handle (readonly)
- * @param config - Lattice configuration for boundary package detection
- * @returns Lint result with issues, coverage, and unresolved count
+ * @param config - Lattice configuration
+ * @returns Lint result with issues and coverage
  */
 // @lattice:flow lint
 function executeLint(db: Database, _config: LatticeConfig): LintResult {
@@ -18,11 +18,11 @@ function executeLint(db: Database, _config: LatticeConfig): LintResult {
 	checkTypos(db, issues);
 	checkOrphanedEvents(db, issues);
 	checkStaleBoundaryTags(db, issues);
+	checkMissingBoundaryTags(db, issues);
 
 	const coverage = computeCoverage(db);
-	const unresolvedCount = countUnresolved(db);
 
-	return { issues, coverage, unresolvedCount };
+	return { issues, coverage };
 }
 
 /** Checks for tags placed on invalid node kinds (e.g., flow tag on a class). */
@@ -56,7 +56,6 @@ function checkInvalidTags(db: Database, issues: LintIssue[]): void {
 
 /** Checks for probable typos by finding tag values used only once when similar values exist. */
 function checkTypos(db: Database, issues: LintIssue[]): void {
-	// Group tag values by kind, find singletons
 	const tagCounts = db
 		.query("SELECT kind, value, COUNT(*) as cnt FROM tags GROUP BY kind, value")
 		.all() as { kind: string; value: string; cnt: number }[];
@@ -96,7 +95,6 @@ function checkTypos(db: Database, issues: LintIssue[]): void {
 
 /** Checks for events that are emitted but never handled, or handled but never emitted. */
 function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
-	// Emits with no matching handles
 	const orphanedEmits = db
 		.query(
 			`SELECT t.value, n.name, n.file, n.line_start FROM tags t
@@ -116,7 +114,6 @@ function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
 		});
 	}
 
-	// Handles with no matching emits
 	const orphanedHandles = db
 		.query(
 			`SELECT t.value, n.name, n.file, n.line_start FROM tags t
@@ -139,8 +136,7 @@ function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
 
 /**
  * Checks for stale boundary tags.
- * A boundary tag is stale if the tagged function has no uncertain call edges at all
- * (meaning it doesn't call any external code that could be the boundary).
+ * A boundary tag is stale if the function has no external calls recorded in the external_calls table.
  */
 function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
 	const boundaryTags = db
@@ -149,13 +145,17 @@ function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
 			JOIN nodes n ON t.node_id = n.id
 			WHERE t.kind = 'boundary'`,
 		)
-		.all() as { node_id: string; value: string; name: string; file: string; line_start: number }[];
+		.all() as {
+		node_id: string;
+		value: string;
+		name: string;
+		file: string;
+		line_start: number;
+	}[];
 
 	for (const tag of boundaryTags) {
-		// A boundary function should have at least one uncertain call edge
-		// (calls to external packages are marked uncertain during extraction)
 		const hasExternalCall = db
-			.query("SELECT 1 FROM edges WHERE source_id = ? AND certainty = 'uncertain' LIMIT 1")
+			.query("SELECT 1 FROM external_calls WHERE node_id = ? LIMIT 1")
 			.get(tag.node_id);
 
 		if (!hasExternalCall) {
@@ -167,6 +167,38 @@ function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
 				message: `@lattice:boundary "${tag.value}" may be stale — no external calls found in this function`,
 			});
 		}
+	}
+}
+
+/**
+ * Checks for functions that call external packages but have no @lattice:boundary tag.
+ */
+function checkMissingBoundaryTags(db: Database, issues: LintIssue[]): void {
+	const rows = db
+		.query(
+			`SELECT DISTINCT ec.node_id, ec.package, n.name, n.file, n.line_start
+			FROM external_calls ec
+			JOIN nodes n ON ec.node_id = n.id
+			WHERE NOT EXISTS (
+				SELECT 1 FROM tags t WHERE t.node_id = ec.node_id AND t.kind = 'boundary'
+			)`,
+		)
+		.all() as {
+		node_id: string;
+		package: string;
+		name: string;
+		file: string;
+		line_start: number;
+	}[];
+
+	for (const row of rows) {
+		issues.push({
+			severity: "warning",
+			file: row.file,
+			line: row.line_start,
+			symbol: row.name,
+			message: `Function calls external package '${row.package}' but has no @lattice:boundary tag`,
+		});
 	}
 }
 
@@ -182,12 +214,6 @@ function computeCoverage(db: Database): { tagged: number; total: number } {
 	return { tagged, total };
 }
 
-/** Counts unresolved references in the database. */
-function countUnresolved(db: Database): number {
-	const row = db.query("SELECT COUNT(*) as c FROM unresolved").get() as { c: number };
-	return row.c;
-}
-
 /**
  * Computes the Levenshtein edit distance between two strings.
  * Used for typo detection in tag values.
@@ -196,7 +222,6 @@ function editDistance(a: string, b: string): number {
 	const m = a.length;
 	const n = b.length;
 
-	// Use two rows instead of a full matrix to avoid index safety issues
 	let prev = Array.from({ length: n + 1 }, (_, j) => j);
 	let curr = new Array<number>(n + 1).fill(0);
 

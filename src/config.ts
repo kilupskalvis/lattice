@@ -66,6 +66,7 @@ function parseTypeScriptSection(raw: unknown): TypeScriptConfig {
 		sourceRoots: isStringArray(section.source_roots) ? section.source_roots : ["."],
 		testPaths: isStringArray(section.test_paths) ? section.test_paths : ["__tests__"],
 		tsconfig: typeof section.tsconfig === "string" ? section.tsconfig : undefined,
+		lspCommand: typeof section.lsp_command === "string" ? section.lsp_command : undefined,
 	};
 }
 

@@ -15,7 +15,6 @@ type LintIssue = {
 type LintResult = {
 	readonly issues: readonly LintIssue[];
 	readonly coverage: { readonly tagged: number; readonly total: number };
-	readonly unresolvedCount: number;
 };
 
 export type { LintIssue, LintResult, LintSeverity };

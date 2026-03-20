@@ -10,19 +10,6 @@ type EdgeKind = (typeof EDGE_KINDS)[number];
 const TAG_KINDS = ["flow", "boundary", "emits", "handles"] as const;
 type TagKind = (typeof TAG_KINDS)[number];
 
-/** Certainty level of an edge relationship. */
-const CERTAINTY_LEVELS = ["certain", "uncertain"] as const;
-type Certainty = (typeof CERTAINTY_LEVELS)[number];
-
-/** Reasons an extractor may fail to resolve a reference. */
-const UNRESOLVED_REASONS = [
-	"dynamic_dispatch",
-	"unknown_module",
-	"computed_property",
-	"untyped_call",
-] as const;
-type UnresolvedReason = (typeof UNRESOLVED_REASONS)[number];
-
 /** A symbol in the codebase (function, class, method, type, module). */
 type Node = {
 	readonly id: string;
@@ -42,7 +29,6 @@ type Edge = {
 	readonly sourceId: string;
 	readonly targetId: string;
 	readonly kind: EdgeKind;
-	readonly certainty: Certainty;
 };
 
 /** A lattice annotation on a node. */
@@ -52,36 +38,22 @@ type Tag = {
 	readonly value: string;
 };
 
-/** A reference that could not be resolved during extraction. */
-type UnresolvedReference = {
-	readonly file: string;
-	readonly line: number;
-	readonly expression: string;
-	readonly reason: UnresolvedReason;
-};
-
-/** The complete output of extracting a single file. */
-type ExtractionResult = {
-	readonly nodes: readonly Node[];
-	readonly edges: readonly Edge[];
-	readonly tags: readonly Tag[];
-	readonly unresolved: readonly UnresolvedReference[];
+/** A call from a project function to an external package. */
+type ExternalCall = {
+	readonly nodeId: string;
+	readonly package: string;
+	readonly symbol: string;
 };
 
 export {
-	CERTAINTY_LEVELS,
-	type Certainty,
 	EDGE_KINDS,
 	type Edge,
 	type EdgeKind,
-	type ExtractionResult,
+	type ExternalCall,
 	NODE_KINDS,
 	type Node,
 	type NodeKind,
 	TAG_KINDS,
 	type Tag,
 	type TagKind,
-	UNRESOLVED_REASONS,
-	type UnresolvedReason,
-	type UnresolvedReference,
 };

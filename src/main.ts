@@ -109,8 +109,7 @@ program
 	.command("lint")
 	.description("Validate tags: syntax, typos, orphans, missing tags")
 	.option("--strict", "Treat warnings as errors")
-	.option("--unresolved", "Show detailed unresolved references")
-	.action((opts: { strict?: boolean; unresolved?: boolean }) => {
+	.action((opts: { strict?: boolean }) => {
 		const cwd = process.cwd();
 		const configResult = loadConfig(cwd);
 		if (!isOk(configResult)) {
@@ -147,21 +146,6 @@ program
 		console.log(
 			`Info:\n  Coverage: ${result.coverage.tagged}/${result.coverage.total} entry points tagged (${result.coverage.total > 0 ? Math.round((result.coverage.tagged / result.coverage.total) * 100) : 0}%)`,
 		);
-		console.log(`  Unresolved references: ${result.unresolvedCount}`);
-
-		// Unresolved details
-		if (opts.unresolved) {
-			const refs = db
-				.query("SELECT file, line, expression, reason FROM unresolved ORDER BY file, line")
-				.all() as { file: string; line: number; expression: string; reason: string }[];
-			if (refs.length > 0) {
-				console.log("\nUnresolved references:");
-				for (const ref of refs) {
-					console.log(`  ${ref.file}:${ref.line}  ${ref.expression} (${ref.reason})`);
-				}
-			}
-		}
-
 		db.close();
 
 		// Exit code

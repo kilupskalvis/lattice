@@ -9,6 +9,7 @@ type TypeScriptConfig = {
 	readonly sourceRoots: readonly string[];
 	readonly testPaths: readonly string[];
 	readonly tsconfig: string | undefined;
+	readonly lspCommand: string | undefined;
 };
 
 /** Lint-specific configuration. */

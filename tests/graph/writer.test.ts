@@ -3,12 +3,12 @@ import { createDatabase } from "../../src/graph/database.ts";
 import {
 	deleteFileData,
 	insertEdges,
+	insertExternalCalls,
 	insertNodes,
 	insertTags,
-	insertUnresolved,
 	synthesizeEventEdges,
 } from "../../src/graph/writer.ts";
-import type { Edge, Node, Tag, UnresolvedReference } from "../../src/types/graph.ts";
+import type { Edge, ExternalCall, Node, Tag } from "../../src/types/graph.ts";
 
 function makeNode(overrides: Partial<Node> & { id: string; name: string }): Node {
 	return {
@@ -64,7 +64,7 @@ describe("insertEdges", () => {
 			makeNode({ id: "b::bar", name: "bar" }),
 		]);
 		const edges: readonly Edge[] = [
-			{ sourceId: "a::foo", targetId: "b::bar", kind: "calls", certainty: "certain" },
+			{ sourceId: "a::foo", targetId: "b::bar", kind: "calls" },
 		];
 		insertEdges(db, edges);
 		const count = db.query("SELECT COUNT(*) as c FROM edges").get() as { c: number };
@@ -88,32 +88,31 @@ describe("insertTags", () => {
 	});
 });
 
-describe("insertUnresolved", () => {
-	it("inserts unresolved references", () => {
+describe("insertExternalCalls", () => {
+	it("inserts external call records", () => {
 		const db = createDatabase(":memory:");
-		const refs: readonly UnresolvedReference[] = [
-			{ file: "src/test.py", line: 5, expression: "dynamic_call()", reason: "dynamic_dispatch" },
+		insertNodes(db, [makeNode({ id: "a::foo", name: "foo" })]);
+		const calls: readonly ExternalCall[] = [
+			{ nodeId: "a::foo", package: "stripe", symbol: "charges.create" },
 		];
-		insertUnresolved(db, refs);
-		const count = db.query("SELECT COUNT(*) as c FROM unresolved").get() as { c: number };
+		insertExternalCalls(db, calls);
+		const count = db.query("SELECT COUNT(*) as c FROM external_calls").get() as { c: number };
 		expect(count.c).toBe(1);
 		db.close();
 	});
 });
 
 describe("deleteFileData", () => {
-	it("removes all nodes, edges, and tags for a file", () => {
+	it("removes all nodes, edges, tags, and external calls for a file", () => {
 		const db = createDatabase(":memory:");
 		insertNodes(db, [
 			makeNode({ id: "a::foo", name: "foo", file: "a.py" }),
 			makeNode({ id: "b::bar", name: "bar", file: "b.py" }),
 		]);
-		insertEdges(db, [
-			{ sourceId: "a::foo", targetId: "b::bar", kind: "calls", certainty: "certain" },
-		]);
+		insertEdges(db, [{ sourceId: "a::foo", targetId: "b::bar", kind: "calls" }]);
 		insertTags(db, [{ nodeId: "a::foo", kind: "flow", value: "checkout" }]);
-		insertUnresolved(db, [
-			{ file: "a.py", line: 1, expression: "x()", reason: "dynamic_dispatch" },
+		insertExternalCalls(db, [
+			{ nodeId: "a::foo", package: "stripe", symbol: "charges.create" },
 		]);
 
 		deleteFileData(db, "a.py");
@@ -129,12 +128,10 @@ describe("deleteFileData", () => {
 		const tagCount = db.query("SELECT COUNT(*) as c FROM tags").get() as { c: number };
 		expect(tagCount.c).toBe(0);
 
-		const unresolvedCount = db
-			.query("SELECT COUNT(*) as c FROM unresolved WHERE file = 'a.py'")
-			.get() as {
+		const externalCount = db.query("SELECT COUNT(*) as c FROM external_calls").get() as {
 			c: number;
 		};
-		expect(unresolvedCount.c).toBe(0);
+		expect(externalCount.c).toBe(0);
 
 		// b.py node should still exist
 		const remaining = db.query("SELECT COUNT(*) as c FROM nodes").get() as { c: number };
