@@ -9,12 +9,10 @@
 	},
 	"files": [
 		"src",
-		"scripts",
 		"README.md",
 		"LICENSE"
 	],
 	"scripts": {
-		"postinstall": "bun scripts/postinstall.ts",
 		"dev": "bun src/main.ts",
 		"test": "bun test",
 		"lint": "bunx biome check src/ tests/",

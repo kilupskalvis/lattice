@@ -40,12 +40,13 @@ type BuildStats = {
 	readonly durationMs: number;
 };
 
-/** Resolves the LSP server binary for a language, checking bundled paths first. */
+const VENDOR_VENV = join(import.meta.dir, "..", "..", "vendor", "venv");
+
+/** Resolves the LSP server binary for a language. Auto-installs zuban on first use. */
 function resolveLspServer(
 	language: string,
 ): { command: string; args: readonly string[]; languageId: string } | undefined {
 	if (language === "typescript") {
-		// Check node_modules/.bin/ first (bundled with lattice-graph)
 		const bundled = join(
 			import.meta.dir,
 			"..",
@@ -58,11 +59,72 @@ function resolveLspServer(
 		return { command, args: ["--stdio"], languageId: "typescript" };
 	}
 	if (language === "python") {
-		const bundled = join(import.meta.dir, "..", "..", "vendor", "venv", "bin", "zubanls");
-		const command = existsSync(bundled) ? bundled : "zubanls";
-		return { command, args: [], languageId: "python" };
+		const zubanls = resolveZuban();
+		if (!zubanls) return undefined;
+		return { command: zubanls, args: [], languageId: "python" };
 	}
 	return undefined;
+}
+
+/** Finds or installs zubanls. Returns the binary path, or undefined if installation fails. */
+function resolveZuban(): string | undefined {
+	const isWindows = process.platform === "win32";
+	const binDir = isWindows ? "Scripts" : "bin";
+	const binName = isWindows ? "zubanls.exe" : "zubanls";
+
+	// 1. Check vendored venv (installed by a previous build)
+	const vendored = join(VENDOR_VENV, binDir, binName);
+	if (existsSync(vendored)) return vendored;
+
+	// 2. Check system PATH
+	const system = Bun.which("zubanls");
+	if (system) return system;
+
+	// 3. Auto-install into vendored venv
+	return installZuban();
+}
+
+/** Creates a venv and pip-installs zuban. Returns zubanls path or undefined on failure. */
+function installZuban(): string | undefined {
+	const isWindows = process.platform === "win32";
+	const binDir = isWindows ? "Scripts" : "bin";
+	const binName = isWindows ? "zubanls.exe" : "zubanls";
+
+	const python = Bun.which("python3") ?? Bun.which("python");
+	if (!python) {
+		console.error("Python not found. Install Python 3 to enable Python support.");
+		return undefined;
+	}
+
+	console.log("Installing Python language server (zuban)...");
+
+	const venvResult = Bun.spawnSync([python, "-m", "venv", VENDOR_VENV], {
+		stdout: "ignore",
+		stderr: "pipe",
+	});
+	if (venvResult.exitCode !== 0) {
+		console.error(`Failed to create venv: ${venvResult.stderr.toString()}`);
+		return undefined;
+	}
+
+	const pip = join(VENDOR_VENV, binDir, isWindows ? "pip.exe" : "pip");
+	const pipResult = Bun.spawnSync([pip, "install", "zuban", "--quiet"], {
+		stdout: "ignore",
+		stderr: "pipe",
+	});
+	if (pipResult.exitCode !== 0) {
+		console.error(`Failed to install zuban: ${pipResult.stderr.toString()}`);
+		return undefined;
+	}
+
+	const zubanls = join(VENDOR_VENV, binDir, binName);
+	if (!existsSync(zubanls)) {
+		console.error("zubanls not found after installation");
+		return undefined;
+	}
+
+	console.log("done");
+	return zubanls;
 }
 
 /**

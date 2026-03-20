@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { err, ok, type Result } from "../types/result.ts";
 
 /**
@@ -102,30 +102,11 @@ function generateToml(languages: readonly string[], root: string): string {
 	return lines.join("\n");
 }
 
-/** Checks if language server binaries are available (bundled or in PATH). */
+/** Checks prerequisites for language support. */
 function checkLspAvailability(languages: readonly string[]): readonly string[] {
 	const warnings: string[] = [];
-	const latticeRoot = resolve(import.meta.dir, "..", "..");
-
-	const checks: Record<string, { bundled: string; system: string; install: string }> = {
-		typescript: {
-			bundled: join(latticeRoot, "node_modules", ".bin", "typescript-language-server"),
-			system: "typescript-language-server",
-			install: "reinstall lattice-graph",
-		},
-		python: {
-			bundled: join(latticeRoot, "vendor", "venv", "bin", "zubanls"),
-			system: "zubanls",
-			install: "reinstall lattice-graph (or pip install zuban)",
-		},
-	};
-
-	for (const lang of languages) {
-		const check = checks[lang];
-		if (!check) continue;
-		if (!existsSync(check.bundled) && !Bun.which(check.system)) {
-			warnings.push(`Warning: ${check.system} not found. ${check.install}`);
-		}
+	if (languages.includes("python") && !Bun.which("python3") && !Bun.which("python")) {
+		warnings.push("Warning: Python 3 not found. Install Python 3 to enable Python support.");
 	}
 	return warnings;
 }
