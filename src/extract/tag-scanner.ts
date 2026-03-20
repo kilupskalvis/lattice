@@ -36,14 +36,6 @@ function scanTags(source: string, nodes: readonly Node[], language?: string): Ta
 		.filter((n) => n.kind === "function" || n.kind === "method" || n.kind === "class")
 		.sort((a, b) => a.lineStart - b.lineStart);
 
-	// Lines inside any symbol body are not valid tag locations — they're in string literals or code
-	const insideBody = new Set<number>();
-	for (const node of nodes) {
-		for (let line = node.lineStart; line <= node.lineEnd; line++) {
-			insideBody.add(line);
-		}
-	}
-
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		if (!line) continue;
@@ -52,8 +44,16 @@ function scanTags(source: string, nodes: readonly Node[], language?: string): Ta
 		// Only process lines that start with a comment prefix for this language
 		if (!commentPrefix.test(line)) continue;
 
-		// Skip tags inside function bodies — they're in string literals, not real comments
-		if (insideBody.has(tagLine)) continue;
+		// Skip tags that are inside a function body and point to the SAME function
+		// (these are @lattice: mentions in string literals, not real tags).
+		// Tags between functions (e.g., above a decorated function whose predecessor's
+		// range overlaps) are fine — the target will be a different, later function.
+		const containingNode = candidateNodes.find(
+			(n) => tagLine > n.lineStart && tagLine <= n.lineEnd,
+		);
+		// If the tag is inside a function and the next function IS that same function, skip it
+		const nextNode = candidateNodes.find((n) => n.lineStart >= tagLine);
+		if (containingNode && nextNode && containingNode.id === nextNode.id) continue;
 
 		const stripped = line.replace(commentPrefix, "");
 		const match = stripped.match(TAG_PATTERN);

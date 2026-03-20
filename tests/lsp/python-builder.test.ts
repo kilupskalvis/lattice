@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
+import { which } from "bun";
 import { createDatabase } from "../../src/graph/database.ts";
 import { buildGraph, buildLanguageConfig } from "../../src/lsp/builder.ts";
 
 const FIXTURE_DIR = resolve(import.meta.dir, "../fixtures/py-simple");
+const hasZuban = which("zubanls") !== null;
 
-describe("buildGraph — Python", () => {
-	test("builds graph from Python files with pyright", async () => {
+describe.skipIf(!hasZuban)("buildGraph — Python", () => {
+	test("builds graph from Python files with zuban", async () => {
 		const db = createDatabase(":memory:");
 		const result = await buildGraph({
 			projectRoot: FIXTURE_DIR,
