@@ -107,7 +107,7 @@ function checkLspAvailability(languages: readonly string[]): readonly string[] {
 	const warnings: string[] = [];
 	const commands: Record<string, string> = {
 		typescript: "typescript-language-server",
-		python: "pyright-langserver",
+		python: "zubanls",
 		go: "gopls",
 	};
 	for (const lang of languages) {

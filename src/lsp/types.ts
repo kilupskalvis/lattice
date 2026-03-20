@@ -55,11 +55,18 @@ type CallHierarchyOutgoingCall = {
 	readonly fromRanges: readonly Range[];
 };
 
+/** A location in a document, returned by textDocument/references. */
+type Location = {
+	readonly uri: string;
+	readonly range: Range;
+};
+
 export {
 	type CallHierarchyItem,
 	type CallHierarchyOutgoingCall,
 	type DocumentSymbol,
 	type JsonRpcMessage,
+	type Location,
 	type Position,
 	type Range,
 	SymbolKind,

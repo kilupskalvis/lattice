@@ -5,6 +5,7 @@ import type {
 	CallHierarchyOutgoingCall,
 	DocumentSymbol,
 	JsonRpcMessage,
+	Location,
 } from "./types.ts";
 
 /** Options for creating an LSP client. */
@@ -29,6 +30,12 @@ type LspClient = {
 	): Promise<readonly CallHierarchyItem[]>;
 	/** Returns outgoing calls from a call hierarchy item. */
 	outgoingCalls(item: CallHierarchyItem): Promise<readonly CallHierarchyOutgoingCall[]>;
+	/** Returns all reference locations for a symbol at a position. */
+	references(
+		filePath: string,
+		line: number,
+		character: number,
+	): Promise<readonly Location[]>;
 	/** Shuts down the language server and kills the process. */
 	shutdown(): Promise<void>;
 };
@@ -175,6 +182,20 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 		async outgoingCalls(item: CallHierarchyItem): Promise<readonly CallHierarchyOutgoingCall[]> {
 			const result = await sendRequest("callHierarchy/outgoingCalls", { item });
 			return (result as readonly CallHierarchyOutgoingCall[]) ?? [];
+		},
+
+		async references(
+			filePath: string,
+			line: number,
+			character: number,
+		): Promise<readonly Location[]> {
+			openFile(filePath);
+			const result = await sendRequest("textDocument/references", {
+				textDocument: { uri: `file://${filePath}` },
+				position: { line, character },
+				context: { includeDeclaration: false },
+			});
+			return (result as readonly Location[]) ?? [];
 		},
 
 		async shutdown(): Promise<void> {
