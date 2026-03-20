@@ -1,9 +1,14 @@
 import type { Node, Tag, TagKind } from "../types/graph.ts";
 import { TAG_KINDS } from "../types/graph.ts";
 
-const TAG_PATTERN = /@lattice:(\S+)\s+(.+)/;
-const COMMENT_PREFIX = /^\s*(?:\/\/|#|--|\/\*\*?|\*)\s*/;
+const TAG_PATTERN = /^@lattice:(\S+)\s+(.+)/;
 const NAME_PATTERN = /^[a-z][a-z0-9._-]*$/;
+
+const COMMENT_PREFIXES: Record<string, RegExp> = {
+	typescript: /^\s*(?:\/\/|\/\*\*?|\*)\s*/,
+	python: /^\s*(?:#|""")\s*/,
+};
+const DEFAULT_COMMENT_PREFIX = /^\s*(?:\/\/|#|--|\/\*\*?|\*)\s*/;
 
 /** Result of scanning a file for @lattice: tags. */
 type TagScanResult = {
@@ -17,28 +22,44 @@ type TagScanResult = {
  *
  * @param source - File source code
  * @param nodes - Nodes from LSP documentSymbol for this file
+ * @param language - Language identifier for comment prefix detection
  * @returns Parsed tags and validation errors
  */
-function scanTags(source: string, nodes: readonly Node[]): TagScanResult {
+function scanTags(source: string, nodes: readonly Node[], language?: string): TagScanResult {
 	const lines = source.split("\n");
 	const tags: Tag[] = [];
 	const errors: string[] = [];
+	const commentPrefix = (language ? COMMENT_PREFIXES[language] : undefined) ?? DEFAULT_COMMENT_PREFIX;
 
-	const sortedNodes = [...nodes]
+	const candidateNodes = [...nodes]
 		.filter((n) => n.kind === "function" || n.kind === "method" || n.kind === "class")
 		.sort((a, b) => a.lineStart - b.lineStart);
+
+	// Lines inside any symbol body are not valid tag locations — they're in string literals or code
+	const insideBody = new Set<number>();
+	for (const node of nodes) {
+		for (let line = node.lineStart; line <= node.lineEnd; line++) {
+			insideBody.add(line);
+		}
+	}
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 		if (!line) continue;
+		const tagLine = i + 1;
 
-		const stripped = line.replace(COMMENT_PREFIX, "");
+		// Only process lines that start with a comment prefix for this language
+		if (!commentPrefix.test(line)) continue;
+
+		// Skip tags inside function bodies — they're in string literals, not real comments
+		if (insideBody.has(tagLine)) continue;
+
+		const stripped = line.replace(commentPrefix, "");
 		const match = stripped.match(TAG_PATTERN);
 		if (!match) continue;
 
 		const kind = match[1] as string;
 		const rawValue = match[2] as string;
-		const tagLine = i + 1;
 
 		if (!TAG_KINDS.includes(kind as TagKind)) {
 			errors.push(`Line ${tagLine}: unknown tag kind '${kind}'`);
@@ -56,7 +77,7 @@ function scanTags(source: string, nodes: readonly Node[]): TagScanResult {
 				continue;
 			}
 
-			const targetNode = sortedNodes.find((n) => n.lineStart >= tagLine);
+			const targetNode = candidateNodes.find((n) => n.lineStart >= tagLine);
 			if (!targetNode) {
 				errors.push(`Line ${tagLine}: @lattice:${kind} ${value} has no function below it`);
 				continue;

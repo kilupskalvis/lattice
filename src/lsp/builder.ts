@@ -108,7 +108,7 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 			}
 
 			// Scan tags
-			const { tags } = scanTags(source, nodes);
+			const { tags } = scanTags(source, nodes, "typescript");
 			allTags.push(...tags);
 		}
 
