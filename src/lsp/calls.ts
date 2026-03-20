@@ -29,6 +29,9 @@ function outgoingCallsToEdges(
 		const uri = call.to.uri;
 
 		if (!uri.startsWith(projectFilePrefix) || uri.includes("/node_modules/")) {
+			// Skip type declarations — not runtime calls
+			if (isTypeDeclaration(uri)) continue;
+
 			const pkg = extractPackageName(uri);
 			if (pkg) {
 				externalCalls.push({ nodeId: sourceId, package: pkg, symbol: call.to.name });
@@ -49,9 +52,10 @@ function outgoingCallsToEdges(
  * Handles scoped packages (@scope/package).
  */
 function extractPackageName(uri: string): string | undefined {
-	const nodeModulesIdx = uri.indexOf("/node_modules/");
+	const decoded = decodeURIComponent(uri);
+	const nodeModulesIdx = decoded.indexOf("/node_modules/");
 	if (nodeModulesIdx === -1) return undefined;
-	const afterNm = uri.slice(nodeModulesIdx + "/node_modules/".length);
+	const afterNm = decoded.slice(nodeModulesIdx + "/node_modules/".length);
 	if (afterNm.startsWith("@")) {
 		const parts = afterNm.split("/");
 		return `${parts[0]}/${parts[1]}`;
@@ -59,4 +63,17 @@ function extractPackageName(uri: string): string | undefined {
 	return afterNm.split("/")[0];
 }
 
-export { type CallConversionResult, extractPackageName, outgoingCallsToEdges };
+/**
+ * Checks if a URI points to a type-only package (not a runtime dependency).
+ * Type definition packages (@types/*, typescript, bun-types) are filtered out.
+ * Actual library .d.ts stubs (e.g., stripe/index.d.ts) are kept — they represent runtime deps.
+ */
+function isTypeDeclaration(uri: string): boolean {
+	if (uri.includes("/node_modules/@types/")) return true;
+	if (uri.includes("/node_modules/%40types/")) return true;
+	if (uri.includes("/node_modules/typescript/")) return true;
+	if (uri.includes("/node_modules/bun-types/")) return true;
+	return false;
+}
+
+export { type CallConversionResult, extractPackageName, isTypeDeclaration, outgoingCallsToEdges };

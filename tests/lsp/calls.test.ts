@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractPackageName, outgoingCallsToEdges } from "../../src/lsp/calls.ts";
+import { extractPackageName, isTypeDeclaration, outgoingCallsToEdges } from "../../src/lsp/calls.ts";
 import { type CallHierarchyOutgoingCall, SymbolKind } from "../../src/lsp/types.ts";
 
 describe("outgoingCallsToEdges", () => {
@@ -85,5 +85,47 @@ describe("extractPackageName", () => {
 
 	test("returns undefined for non-node_modules path", () => {
 		expect(extractPackageName("file:///usr/lib/something.ts")).toBeUndefined();
+	});
+});
+
+describe("isTypeDeclaration", () => {
+	test("allows library .d.ts stubs as real runtime deps", () => {
+		expect(isTypeDeclaration("file:///project/node_modules/stripe/index.d.ts")).toBe(false);
+	});
+
+	test("detects @types packages", () => {
+		expect(isTypeDeclaration("file:///project/node_modules/@types/node/index.d.ts")).toBe(true);
+	});
+
+	test("detects typescript package", () => {
+		expect(isTypeDeclaration("file:///project/node_modules/typescript/lib/lib.es2022.d.ts")).toBe(
+			true,
+		);
+	});
+
+	test("detects bun-types package", () => {
+		expect(isTypeDeclaration("file:///project/node_modules/bun-types/types.d.ts")).toBe(true);
+	});
+
+	test("returns false for runtime .ts files", () => {
+		expect(isTypeDeclaration("file:///project/node_modules/stripe/lib/stripe.ts")).toBe(false);
+	});
+
+	test("skips type-only calls in outgoingCallsToEdges", () => {
+		const calls: CallHierarchyOutgoingCall[] = [
+			{
+				to: {
+					name: "Database",
+					kind: SymbolKind.Class,
+					uri: "file:///project/node_modules/bun-types/sqlite.d.ts",
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+					selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 8 } },
+				},
+				fromRanges: [],
+			},
+		];
+		const result = outgoingCallsToEdges("src/db.ts::open", calls, "/project");
+		expect(result.edges).toHaveLength(0);
+		expect(result.externalCalls).toHaveLength(0);
 	});
 });
