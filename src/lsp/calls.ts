@@ -69,10 +69,15 @@ function extractPackageName(uri: string): string | undefined {
  * Actual library .d.ts stubs (e.g., stripe/index.d.ts) are kept — they represent runtime deps.
  */
 function isTypeDeclaration(uri: string): boolean {
+	// TypeScript type-only packages
 	if (uri.includes("/node_modules/@types/")) return true;
 	if (uri.includes("/node_modules/%40types/")) return true;
 	if (uri.includes("/node_modules/typescript/")) return true;
 	if (uri.includes("/node_modules/bun-types/")) return true;
+	// Python type stubs
+	if (uri.includes("/typeshed/")) return true;
+	if (uri.includes("/typestubs/")) return true;
+	if (uri.includes("-stubs/")) return true;
 	return false;
 }
 

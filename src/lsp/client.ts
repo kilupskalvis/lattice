@@ -12,6 +12,7 @@ type LspClientOptions = {
 	readonly command: string;
 	readonly args: readonly string[];
 	readonly rootUri: string;
+	readonly languageId?: string;
 };
 
 /** An LSP client that communicates with a language server over stdio. */
@@ -110,6 +111,8 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 		proc.stdin?.write(header + body);
 	}
 
+	const langId = opts.languageId ?? "typescript";
+
 	function openFile(filePath: string): void {
 		const uri = `file://${filePath}`;
 		if (openedFiles.has(uri)) return;
@@ -117,7 +120,7 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 
 		const text = readFileSync(filePath, "utf-8");
 		sendNotification("textDocument/didOpen", {
-			textDocument: { uri, languageId: "typescript", version: 1, text },
+			textDocument: { uri, languageId: langId, version: 1, text },
 		});
 	}
 

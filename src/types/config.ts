@@ -2,6 +2,7 @@
 type PythonConfig = {
 	readonly sourceRoots: readonly string[];
 	readonly testPaths: readonly string[];
+	readonly lspCommand: string | undefined;
 };
 
 /** Configuration for a TypeScript language section. */

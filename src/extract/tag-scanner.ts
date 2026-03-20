@@ -29,7 +29,8 @@ function scanTags(source: string, nodes: readonly Node[], language?: string): Ta
 	const lines = source.split("\n");
 	const tags: Tag[] = [];
 	const errors: string[] = [];
-	const commentPrefix = (language ? COMMENT_PREFIXES[language] : undefined) ?? DEFAULT_COMMENT_PREFIX;
+	const commentPrefix =
+		(language ? COMMENT_PREFIXES[language] : undefined) ?? DEFAULT_COMMENT_PREFIX;
 
 	const candidateNodes = [...nodes]
 		.filter((n) => n.kind === "function" || n.kind === "method" || n.kind === "class")

@@ -1,14 +1,19 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createDatabase } from "../graph/database.ts";
-import { type BuildStats, buildGraph } from "../lsp/builder.ts";
+import {
+	type BuildStats,
+	buildGraph,
+	buildLanguageConfig,
+	type LanguageConfig,
+} from "../lsp/builder.ts";
 import type { LatticeConfig } from "../types/config.ts";
 import { err, ok, type Result } from "../types/result.ts";
 
 /**
  * Performs a full graph build using LSP extraction.
- * Clears existing data, spawns a language server, extracts symbols and call hierarchy,
- * scans for tags, and writes everything to SQLite.
+ * Clears existing data, spawns a language server per configured language,
+ * extracts symbols and call hierarchy, scans for tags, and writes everything to SQLite.
  *
  * @param projectRoot - Absolute path to the project root
  * @param config - Parsed lattice.toml configuration
@@ -30,14 +35,13 @@ async function executeBuild(
 		db.run("DELETE FROM edges");
 		db.run("DELETE FROM nodes");
 
+		const languageConfigs = buildLanguageConfigs(config);
+
 		const stats = await buildGraph({
 			projectRoot,
 			db,
-			languages: config.languages,
-			sourceRoots: config.typescript?.sourceRoots ?? [config.root],
+			languageConfigs,
 			exclude: config.exclude,
-			testPaths: config.typescript?.testPaths ?? [],
-			lspCommand: config.typescript?.lspCommand,
 		});
 
 		db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('last_build', ?)", [
@@ -49,6 +53,39 @@ async function executeBuild(
 	} catch (e) {
 		return err(e instanceof Error ? e.message : String(e));
 	}
+}
+
+/** Builds LanguageConfig entries from LatticeConfig for each configured language. */
+function buildLanguageConfigs(config: LatticeConfig): readonly LanguageConfig[] {
+	const configs: LanguageConfig[] = [];
+
+	if (config.languages.includes("typescript") && config.typescript) {
+		configs.push(
+			buildLanguageConfig(
+				"typescript",
+				config.typescript.sourceRoots,
+				config.typescript.testPaths,
+				config.typescript.lspCommand,
+			),
+		);
+	} else if (config.languages.includes("typescript")) {
+		configs.push(buildLanguageConfig("typescript", [config.root], [], undefined));
+	}
+
+	if (config.languages.includes("python") && config.python) {
+		configs.push(
+			buildLanguageConfig(
+				"python",
+				config.python.sourceRoots,
+				config.python.testPaths,
+				config.python.lspCommand,
+			),
+		);
+	} else if (config.languages.includes("python")) {
+		configs.push(buildLanguageConfig("python", [config.root], ["tests"], undefined));
+	}
+
+	return configs;
 }
 
 export { executeBuild };

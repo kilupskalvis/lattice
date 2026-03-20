@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { extractPackageName, isTypeDeclaration, outgoingCallsToEdges } from "../../src/lsp/calls.ts";
+import {
+	extractPackageName,
+	isTypeDeclaration,
+	outgoingCallsToEdges,
+} from "../../src/lsp/calls.ts";
 import { type CallHierarchyOutgoingCall, SymbolKind } from "../../src/lsp/types.ts";
 
 describe("outgoingCallsToEdges", () => {

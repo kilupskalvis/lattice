@@ -56,6 +56,7 @@ function parsePythonSection(raw: unknown): PythonConfig {
 	return {
 		sourceRoots: isStringArray(section.source_roots) ? section.source_roots : ["."],
 		testPaths: isStringArray(section.test_paths) ? section.test_paths : ["tests"],
+		lspCommand: typeof section.lsp_command === "string" ? section.lsp_command : undefined,
 	};
 }
 

@@ -24,7 +24,7 @@ const defaultConfig: LatticeConfig = {
 	languages: ["python"],
 	root: ".",
 	exclude: [],
-	python: { sourceRoots: ["."], testPaths: ["tests"] },
+	python: { sourceRoots: ["."], testPaths: ["tests"], lspCommand: undefined },
 	typescript: undefined,
 	lint: { strict: false, ignore: [] },
 };
