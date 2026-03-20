@@ -78,4 +78,83 @@ function symbolKindToNodeKind(kind: number): NodeKind | undefined {
 	return undefined;
 }
 
-export { documentSymbolsToNodes };
+/** A Lattice Node paired with the LSP selectionRange position for call hierarchy queries. */
+type NodeWithPosition = {
+	readonly node: Node;
+	readonly selectionLine: number;
+	readonly selectionCharacter: number;
+};
+
+/**
+ * Like documentSymbolsToNodes but also returns the selectionRange position
+ * needed for prepareCallHierarchy requests.
+ */
+function documentSymbolsToNodesWithPositions(
+	symbols: readonly DocumentSymbol[],
+	filePath: string,
+	language: string,
+	isTest: boolean,
+): readonly NodeWithPosition[] {
+	const results: NodeWithPosition[] = [];
+	flattenSymbolsWithPositions(symbols, filePath, language, isTest, [], results);
+	return results;
+}
+
+function flattenSymbolsWithPositions(
+	symbols: readonly DocumentSymbol[],
+	filePath: string,
+	language: string,
+	isTest: boolean,
+	parentNames: readonly string[],
+	results: NodeWithPosition[],
+): void {
+	for (const sym of symbols) {
+		const kind = symbolKindToNodeKind(sym.kind);
+		if (!kind) {
+			if (sym.children) {
+				flattenSymbolsWithPositions(
+					sym.children,
+					filePath,
+					language,
+					isTest,
+					parentNames,
+					results,
+				);
+			}
+			continue;
+		}
+
+		const qualifiedName = [...parentNames, sym.name].join(".");
+		const id = `${filePath}::${qualifiedName}`;
+
+		results.push({
+			node: {
+				id,
+				kind,
+				name: sym.name,
+				file: filePath,
+				lineStart: sym.range.start.line + 1,
+				lineEnd: sym.range.end.line + 1,
+				language,
+				signature: undefined,
+				isTest,
+				metadata: undefined,
+			},
+			selectionLine: sym.selectionRange.start.line,
+			selectionCharacter: sym.selectionRange.start.character,
+		});
+
+		if (sym.children) {
+			flattenSymbolsWithPositions(
+				sym.children,
+				filePath,
+				language,
+				isTest,
+				[...parentNames, sym.name],
+				results,
+			);
+		}
+	}
+}
+
+export { documentSymbolsToNodes, documentSymbolsToNodesWithPositions, type NodeWithPosition };
