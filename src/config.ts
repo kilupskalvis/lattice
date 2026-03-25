@@ -1,8 +1,22 @@
 import { parse as parseToml } from "smol-toml";
-import type { LatticeConfig, LintConfig, PythonConfig, TypeScriptConfig } from "./types/config.ts";
+import type {
+	GoConfig,
+	LatticeConfig,
+	LintConfig,
+	PythonConfig,
+	TypeScriptConfig,
+} from "./types/config.ts";
 import { err, ok, type Result } from "./types/result.ts";
 
-const DEFAULT_EXCLUDE = ["node_modules", "venv", ".git", "dist", "__pycache__", ".lattice"];
+const DEFAULT_EXCLUDE = [
+	"node_modules",
+	"venv",
+	"vendor",
+	".git",
+	"dist",
+	"__pycache__",
+	".lattice",
+];
 
 /**
  * Parses a TOML string into a validated LatticeConfig.
@@ -38,6 +52,8 @@ function parseConfig(tomlString: string): Result<LatticeConfig, string> {
 		? parseTypeScriptSection(raw.typescript)
 		: undefined;
 
+	const goConfig = languages.includes("go") ? parseGoSection(raw.go) : undefined;
+
 	const lintConfig = parseLintSection(raw.lint);
 
 	return ok({
@@ -46,6 +62,7 @@ function parseConfig(tomlString: string): Result<LatticeConfig, string> {
 		exclude,
 		python: pythonConfig,
 		typescript: typescriptConfig,
+		go: goConfig,
 		lint: lintConfig,
 	});
 }
@@ -66,6 +83,15 @@ function parseTypeScriptSection(raw: unknown): TypeScriptConfig {
 		sourceRoots: isStringArray(section.source_roots) ? section.source_roots : ["."],
 		testPaths: isStringArray(section.test_paths) ? section.test_paths : ["__tests__"],
 		tsconfig: typeof section.tsconfig === "string" ? section.tsconfig : undefined,
+	};
+}
+
+/** Parses the [go] section with defaults for missing fields. */
+function parseGoSection(raw: unknown): GoConfig {
+	const section = isRecord(raw) ? raw : {};
+	return {
+		sourceRoots: isStringArray(section.source_roots) ? section.source_roots : ["."],
+		testPaths: isStringArray(section.test_paths) ? section.test_paths : [],
 	};
 }
 

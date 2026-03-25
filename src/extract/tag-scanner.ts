@@ -7,6 +7,7 @@ const NAME_PATTERN = /^[a-z][a-z0-9._-]*$/;
 const COMMENT_PREFIXES: Record<string, RegExp> = {
 	typescript: /^\s*(?:\/\/|\/\*\*?|\*)\s*/,
 	python: /^\s*(?:#|""")\s*/,
+	go: /^\s*(?:\/\/)\s*/,
 };
 const DEFAULT_COMMENT_PREFIX = /^\s*(?:\/\/|#|--|\/\*\*?|\*)\s*/;
 

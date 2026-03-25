@@ -42,6 +42,12 @@ type BuildStats = {
 
 const VENDOR_VENV = join(import.meta.dir, "..", "..", "vendor", "venv");
 
+const LANGUAGE_EXTENSIONS: Record<string, readonly string[]> = {
+	typescript: [".ts", ".tsx"],
+	python: [".py"],
+	go: [".go"],
+};
+
 /** Resolves the LSP server binary for a language. Auto-installs zuban on first use. */
 function resolveLspServer(
 	language: string,
@@ -62,6 +68,11 @@ function resolveLspServer(
 		const zubanls = resolveZuban();
 		if (!zubanls) return undefined;
 		return { command: zubanls, args: [], languageId: "python" };
+	}
+	if (language === "go") {
+		const goplsBin = resolveGopls();
+		if (!goplsBin) return undefined;
+		return { command: goplsBin, args: ["serve"], languageId: "go" };
 	}
 	return undefined;
 }
@@ -127,6 +138,58 @@ function installZuban(): string | undefined {
 	return zubanls;
 }
 
+/** Resolves gopls binary path from GOBIN or GOPATH/bin. */
+function findGoplsBinary(): string | undefined {
+	const gobin = process.env.GOBIN;
+	if (gobin) {
+		const goplsPath = join(gobin, "gopls");
+		if (existsSync(goplsPath)) return goplsPath;
+	}
+	const gopath = process.env.GOPATH ?? join(process.env.HOME ?? "", "go");
+	const gopathBin = join(gopath, "bin", "gopls");
+	if (existsSync(gopathBin)) return gopathBin;
+	return undefined;
+}
+
+/** Finds or installs gopls. Returns the binary path, or undefined if unavailable. */
+function resolveGopls(): string | undefined {
+	const system = Bun.which("gopls");
+	if (system) return system;
+
+	const found = findGoplsBinary();
+	if (found) return found;
+
+	return installGopls();
+}
+
+/** Installs gopls via go install. Returns binary path or undefined on failure. */
+function installGopls(): string | undefined {
+	const goBin = Bun.which("go");
+	if (!goBin) {
+		console.error("Go not found. Install Go to enable Go support.");
+		return undefined;
+	}
+
+	console.log("Installing Go language server (gopls)...");
+
+	const result = Bun.spawnSync([goBin, "install", "golang.org/x/tools/gopls@latest"], {
+		stdout: "ignore",
+		stderr: "pipe",
+	});
+	if (result.exitCode !== 0) {
+		console.error(`Failed to install gopls: ${result.stderr.toString()}`);
+		return undefined;
+	}
+
+	const installed = findGoplsBinary();
+	if (!installed) {
+		console.error("gopls not found after installation");
+		return undefined;
+	}
+	console.log("done");
+	return installed;
+}
+
 /**
  * Builds the knowledge graph by querying LSP servers for symbols and call hierarchy,
  * scanning for @lattice: tags, and writing everything to SQLite.
@@ -179,7 +242,10 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 
 			for (const filePath of files) {
 				const relativePath = relative(projectRoot, filePath);
-				const isTest = langConfig.testPaths.some((tp) => relativePath.startsWith(tp));
+				const isTest =
+					langConfig.language === "go"
+						? relativePath.endsWith("_test.go")
+						: langConfig.testPaths.some((tp) => relativePath.startsWith(tp));
 				const source = await Bun.file(filePath).text();
 
 				const symbols = await client.documentSymbol(filePath);
@@ -198,30 +264,36 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 				fileDataList.push({ filePath, relativePath, nodesWithPos });
 			}
 
-			// Phase 2a: outgoingCalls — "what does each function call?"
-			for (const fd of fileDataList) {
-				for (const nwp of fd.nodesWithPos) {
-					if (nwp.node.kind !== "function" && nwp.node.kind !== "method") continue;
+			// Phase 2a: outgoingCalls — gopls doesn't support this over stdio, so skip for Go
+			if (langConfig.language !== "go")
+				for (const fd of fileDataList) {
+					for (const nwp of fd.nodesWithPos) {
+						if (nwp.node.kind !== "function" && nwp.node.kind !== "method") continue;
 
-					try {
-						const items = await client.prepareCallHierarchy(
-							fd.filePath,
-							nwp.selectionLine,
-							nwp.selectionCharacter,
-						);
-						if (items.length === 0) continue;
-						const item = items[0];
-						if (!item) continue;
+						try {
+							const items = await client.prepareCallHierarchy(
+								fd.filePath,
+								nwp.selectionLine,
+								nwp.selectionCharacter,
+							);
+							if (items.length === 0) continue;
+							const item = items[0];
+							if (!item) continue;
 
-						const calls = await client.outgoingCalls(item);
-						const { edges, externalCalls } = outgoingCallsToEdges(nwp.node.id, calls, projectRoot);
-						allEdges.push(...edges);
-						allExternalCalls.push(...externalCalls);
-					} catch {
-						// outgoingCalls not supported by this server — skip silently
+							const calls = await client.outgoingCalls(item);
+							const { edges, externalCalls } = outgoingCallsToEdges(
+								nwp.node.id,
+								calls,
+								projectRoot,
+								langConfig.language,
+							);
+							allEdges.push(...edges);
+							allExternalCalls.push(...externalCalls);
+						} catch {
+							// outgoingCalls not supported by this server — skip silently
+						}
 					}
 				}
-			}
 
 			// Phase 2b: references — "who references each function?"
 			const nodesByFile = new Map<string, readonly Node[]>();
@@ -297,7 +369,7 @@ function buildLanguageConfig(
 	sourceRoots: readonly string[],
 	testPaths: readonly string[],
 ): LanguageConfig {
-	const extensions = language === "python" ? [".py"] : [".ts", ".tsx"];
+	const extensions = LANGUAGE_EXTENSIONS[language] ?? [];
 	return { language, extensions, sourceRoots, testPaths };
 }
 

@@ -73,6 +73,12 @@ function buildLanguageConfigs(config: LatticeConfig): readonly LanguageConfig[] 
 		configs.push(buildLanguageConfig("python", [config.root], ["tests"]));
 	}
 
+	if (config.languages.includes("go") && config.go) {
+		configs.push(buildLanguageConfig("go", config.go.sourceRoots, config.go.testPaths));
+	} else if (config.languages.includes("go")) {
+		configs.push(buildLanguageConfig("go", [config.root], []));
+	}
+
 	return configs;
 }
 

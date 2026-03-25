@@ -29,6 +29,7 @@ const SymbolKind = {
 	Constructor: 9,
 	Variable: 13,
 	Property: 7,
+	Struct: 23,
 } as const;
 
 /** A symbol in a document, returned by textDocument/documentSymbol. */

@@ -26,6 +26,7 @@ const config: LatticeConfig = {
 	exclude: [],
 	python: { sourceRoots: ["."], testPaths: ["tests"] },
 	typescript: undefined,
+	go: undefined,
 	lint: { strict: false, ignore: [] },
 };
 

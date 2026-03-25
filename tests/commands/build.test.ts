@@ -22,6 +22,7 @@ describe("executeBuild", () => {
 			root: ".",
 			exclude: ["node_modules", ".git"],
 			python: undefined,
+			go: undefined,
 			typescript: {
 				sourceRoots: ["."],
 				testPaths: [],
@@ -48,6 +49,7 @@ describe("executeBuild", () => {
 			root: ".",
 			exclude: ["node_modules"],
 			python: undefined,
+			go: undefined,
 			typescript: {
 				sourceRoots: ["."],
 				testPaths: [],
@@ -69,6 +71,7 @@ describe("executeBuild", () => {
 			root: ".",
 			exclude: ["node_modules"],
 			python: undefined,
+			go: undefined,
 			typescript: {
 				sourceRoots: ["."],
 				testPaths: [],

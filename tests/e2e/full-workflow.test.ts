@@ -27,6 +27,7 @@ const config: LatticeConfig = {
 		testPaths: [],
 		tsconfig: undefined,
 	},
+	go: undefined,
 	lint: { strict: false, ignore: [] },
 };
 

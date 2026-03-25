@@ -80,7 +80,12 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 
 			try {
 				const msg = JSON.parse(body) as JsonRpcMessage;
-				if (msg.id !== undefined && pending.has(msg.id)) {
+				if (msg.method && msg.id !== undefined) {
+					// Server-initiated request — reply with null to unblock the server
+					const reply = JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: null });
+					const replyHeader = `Content-Length: ${Buffer.byteLength(reply)}\r\n\r\n`;
+					proc.stdin?.write(replyHeader + reply);
+				} else if (msg.id !== undefined && pending.has(msg.id)) {
 					const handler = pending.get(msg.id);
 					pending.delete(msg.id);
 					if (msg.error) {
@@ -95,7 +100,7 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 		}
 	});
 
-	function sendRequest(method: string, params: unknown): Promise<unknown> {
+	function sendRequest(method: string, params: unknown, timeoutMs = 30000): Promise<unknown> {
 		const id = nextId++;
 		const msg: JsonRpcMessage = { jsonrpc: "2.0", id, method, params };
 		const body = JSON.stringify(msg);
@@ -103,7 +108,20 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 		proc.stdin?.write(header + body);
 
 		return new Promise((resolve, reject) => {
-			pending.set(id, { resolve, reject });
+			const timer = setTimeout(() => {
+				pending.delete(id);
+				reject(new Error(`LSP request ${method} timed out after ${timeoutMs}ms`));
+			}, timeoutMs);
+			pending.set(id, {
+				resolve: (v: unknown) => {
+					clearTimeout(timer);
+					resolve(v);
+				},
+				reject: (e: Error) => {
+					clearTimeout(timer);
+					reject(e);
+				},
+			});
 		});
 	}
 
@@ -144,7 +162,7 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 	const client: LspClient = {
 		async waitForReady(probePath: string): Promise<void> {
 			openFile(probePath);
-			const delays = [100, 200, 400, 800, 1600, 3200];
+			const delays = [100, 200, 400, 800, 1600, 3200, 5000, 5000];
 			for (const delay of delays) {
 				const result = (await sendRequest("textDocument/documentSymbol", {
 					textDocument: { uri: `file://${probePath}` },
@@ -168,10 +186,14 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 			character: number,
 		): Promise<readonly CallHierarchyItem[]> {
 			openFile(filePath);
-			const result = await sendRequest("textDocument/prepareCallHierarchy", {
-				textDocument: { uri: `file://${filePath}` },
-				position: { line, character },
-			});
+			const result = await sendRequest(
+				"textDocument/prepareCallHierarchy",
+				{
+					textDocument: { uri: `file://${filePath}` },
+					position: { line, character },
+				},
+				5000,
+			);
 			return (result as readonly CallHierarchyItem[]) ?? [];
 		},
 

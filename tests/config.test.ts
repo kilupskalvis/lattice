@@ -51,4 +51,37 @@ describe("parseConfig", () => {
 		const config = unwrap(parseConfig(toml));
 		expect(config.python).toBeUndefined();
 	});
+
+	it("parses go section when present", () => {
+		const toml = `[project]
+languages = ["go"]
+
+[go]
+source_roots = ["cmd", "internal"]
+test_paths = []`;
+		const config = unwrap(parseConfig(toml));
+		expect(config.go).toBeDefined();
+		expect(config.go?.sourceRoots).toEqual(["cmd", "internal"]);
+		expect(config.go?.testPaths).toEqual([]);
+	});
+
+	it("applies go defaults when section is missing", () => {
+		const toml = '[project]\nlanguages = ["go"]';
+		const config = unwrap(parseConfig(toml));
+		expect(config.go).toBeDefined();
+		expect(config.go?.sourceRoots).toEqual(["."]);
+		expect(config.go?.testPaths).toEqual([]);
+	});
+
+	it("leaves go undefined when not in languages", () => {
+		const toml = '[project]\nlanguages = ["typescript"]';
+		const config = unwrap(parseConfig(toml));
+		expect(config.go).toBeUndefined();
+	});
+
+	it("includes vendor in default excludes", () => {
+		const toml = '[project]\nlanguages = ["go"]';
+		const config = unwrap(parseConfig(toml));
+		expect(config.exclude).toContain("vendor");
+	});
 });

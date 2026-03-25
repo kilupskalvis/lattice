@@ -1,0 +1,6 @@
+[project]
+languages = ["go"]
+root = "."
+
+[go]
+source_roots = ["."]

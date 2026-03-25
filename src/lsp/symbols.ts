@@ -18,7 +18,7 @@ function documentSymbolsToNodes(
 	isTest: boolean,
 ): readonly Node[] {
 	const nodes: Node[] = [];
-	flattenSymbols(symbols, filePath, language, isTest, [], nodes);
+	flattenSymbols(symbols, filePath, language, isTest, [], nodes, new Map());
 	return nodes;
 }
 
@@ -29,19 +29,20 @@ function flattenSymbols(
 	isTest: boolean,
 	parentNames: readonly string[],
 	results: Node[],
+	seenIds: Map<string, number>,
 ): void {
 	for (const sym of symbols) {
 		const kind = symbolKindToNodeKind(sym.kind);
 		if (!kind) {
 			// Still recurse into children for non-matching kinds (e.g., modules)
 			if (sym.children) {
-				flattenSymbols(sym.children, filePath, language, isTest, parentNames, results);
+				flattenSymbols(sym.children, filePath, language, isTest, parentNames, results, seenIds);
 			}
 			continue;
 		}
 
 		const qualifiedName = [...parentNames, sym.name].join(".");
-		const id = `${filePath}::${qualifiedName}`;
+		const id = deduplicateId(`${filePath}::${qualifiedName}`, seenIds);
 
 		results.push({
 			id,
@@ -57,9 +58,24 @@ function flattenSymbols(
 		});
 
 		if (sym.children) {
-			flattenSymbols(sym.children, filePath, language, isTest, [...parentNames, sym.name], results);
+			flattenSymbols(
+				sym.children,
+				filePath,
+				language,
+				isTest,
+				[...parentNames, sym.name],
+				results,
+				seenIds,
+			);
 		}
 	}
+}
+
+/** Returns a unique ID, appending $N for duplicates (e.g., Go's multiple init() per file). */
+function deduplicateId(baseId: string, seenIds: Map<string, number>): string {
+	const count = seenIds.get(baseId) ?? 0;
+	seenIds.set(baseId, count + 1);
+	return count === 0 ? baseId : `${baseId}$${count + 1}`;
 }
 
 function symbolKindToNodeKind(kind: number): NodeKind | undefined {
@@ -68,6 +84,7 @@ function symbolKindToNodeKind(kind: number): NodeKind | undefined {
 	if (kind === SymbolKind.Constructor) return "method";
 	if (kind === SymbolKind.Class) return "class";
 	if (kind === SymbolKind.Interface) return "type";
+	if (kind === SymbolKind.Struct) return "class";
 	return undefined;
 }
 
@@ -89,7 +106,7 @@ function documentSymbolsToNodesWithPositions(
 	isTest: boolean,
 ): readonly NodeWithPosition[] {
 	const results: NodeWithPosition[] = [];
-	flattenSymbolsWithPositions(symbols, filePath, language, isTest, [], results);
+	flattenSymbolsWithPositions(symbols, filePath, language, isTest, [], results, new Map());
 	return results;
 }
 
@@ -100,18 +117,27 @@ function flattenSymbolsWithPositions(
 	isTest: boolean,
 	parentNames: readonly string[],
 	results: NodeWithPosition[],
+	seenIds: Map<string, number>,
 ): void {
 	for (const sym of symbols) {
 		const kind = symbolKindToNodeKind(sym.kind);
 		if (!kind) {
 			if (sym.children) {
-				flattenSymbolsWithPositions(sym.children, filePath, language, isTest, parentNames, results);
+				flattenSymbolsWithPositions(
+					sym.children,
+					filePath,
+					language,
+					isTest,
+					parentNames,
+					results,
+					seenIds,
+				);
 			}
 			continue;
 		}
 
 		const qualifiedName = [...parentNames, sym.name].join(".");
-		const id = `${filePath}::${qualifiedName}`;
+		const id = deduplicateId(`${filePath}::${qualifiedName}`, seenIds);
 
 		results.push({
 			node: {
@@ -138,6 +164,7 @@ function flattenSymbolsWithPositions(
 				isTest,
 				[...parentNames, sym.name],
 				results,
+				seenIds,
 			);
 		}
 	}

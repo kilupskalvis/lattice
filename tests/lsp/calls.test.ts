@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	extractGoModuleName,
 	extractPackageName,
 	isTypeDeclaration,
 	outgoingCallsToEdges,
@@ -25,7 +26,7 @@ describe("outgoingCallsToEdges", () => {
 				fromRanges: [{ start: { line: 2, character: 4 }, end: { line: 2, character: 10 } }],
 			},
 		];
-		const result = outgoingCallsToEdges("src/main.ts::greet", calls, projectRoot);
+		const result = outgoingCallsToEdges("src/main.ts::greet", calls, projectRoot, "typescript");
 		expect(result.edges).toHaveLength(1);
 		expect(result.edges[0]?.targetId).toBe("src/utils.ts::helper");
 		expect(result.externalCalls).toHaveLength(0);
@@ -47,7 +48,7 @@ describe("outgoingCallsToEdges", () => {
 				fromRanges: [],
 			},
 		];
-		const result = outgoingCallsToEdges("src/pay.ts::charge", calls, projectRoot);
+		const result = outgoingCallsToEdges("src/pay.ts::charge", calls, projectRoot, "typescript");
 		expect(result.edges).toHaveLength(0);
 		expect(result.externalCalls).toHaveLength(1);
 		expect(result.externalCalls[0]?.package).toBe("stripe");
@@ -70,7 +71,7 @@ describe("outgoingCallsToEdges", () => {
 				fromRanges: [],
 			},
 		];
-		const result = outgoingCallsToEdges("src/io.ts::load", calls, projectRoot);
+		const result = outgoingCallsToEdges("src/io.ts::load", calls, projectRoot, "typescript");
 		expect(result.edges).toHaveLength(0);
 		expect(result.externalCalls).toHaveLength(0);
 	});
@@ -128,8 +129,69 @@ describe("isTypeDeclaration", () => {
 				fromRanges: [],
 			},
 		];
-		const result = outgoingCallsToEdges("src/db.ts::open", calls, "/project");
+		const result = outgoingCallsToEdges("src/db.ts::open", calls, "/project", "typescript");
 		expect(result.edges).toHaveLength(0);
 		expect(result.externalCalls).toHaveLength(0);
+	});
+});
+
+describe("extractGoModuleName", () => {
+	test("extracts module from Go module cache path", () => {
+		expect(
+			extractGoModuleName("file:///Users/x/go/pkg/mod/github.com/gin-gonic/gin@v1.9.1/context.go"),
+		).toBe("github.com/gin-gonic/gin");
+	});
+
+	test("extracts stdlib package from GOROOT", () => {
+		expect(extractGoModuleName("file:///usr/local/go/src/fmt/print.go")).toBe("fmt");
+	});
+
+	test("extracts multi-segment stdlib package", () => {
+		expect(extractGoModuleName("file:///usr/local/go/src/net/http/server.go")).toBe("net/http");
+	});
+
+	test("returns undefined for project-local path", () => {
+		expect(extractGoModuleName("file:///project/src/main.go")).toBeUndefined();
+	});
+});
+
+describe("outgoingCallsToEdges — Go", () => {
+	const projectRoot = "/project";
+
+	test("detects Go module cache external calls", () => {
+		const calls: CallHierarchyOutgoingCall[] = [
+			{
+				to: {
+					name: "New",
+					kind: SymbolKind.Function,
+					uri: "file:///Users/x/go/pkg/mod/github.com/gin-gonic/gin@v1.9.1/gin.go",
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+					selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 3 } },
+				},
+				fromRanges: [],
+			},
+		];
+		const result = outgoingCallsToEdges("main.go::main", calls, projectRoot, "go");
+		expect(result.edges).toHaveLength(0);
+		expect(result.externalCalls).toHaveLength(1);
+		expect(result.externalCalls[0]?.package).toBe("github.com/gin-gonic/gin");
+	});
+
+	test("does not skip Go source files as type declarations", () => {
+		const calls: CallHierarchyOutgoingCall[] = [
+			{
+				to: {
+					name: "Println",
+					kind: SymbolKind.Function,
+					uri: "file:///usr/local/go/src/fmt/print.go",
+					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+					selectionRange: { start: { line: 0, character: 0 }, end: { line: 0, character: 7 } },
+				},
+				fromRanges: [],
+			},
+		];
+		const result = outgoingCallsToEdges("main.go::main", calls, projectRoot, "go");
+		expect(result.externalCalls).toHaveLength(1);
+		expect(result.externalCalls[0]?.package).toBe("fmt");
 	});
 });

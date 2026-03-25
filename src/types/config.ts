@@ -11,6 +11,12 @@ type TypeScriptConfig = {
 	readonly tsconfig: string | undefined;
 };
 
+/** Configuration for a Go language section. */
+type GoConfig = {
+	readonly sourceRoots: readonly string[];
+	readonly testPaths: readonly string[];
+};
+
 /** Lint-specific configuration. */
 type LintConfig = {
 	readonly strict: boolean;
@@ -24,7 +30,8 @@ type LatticeConfig = {
 	readonly exclude: readonly string[];
 	readonly python: PythonConfig | undefined;
 	readonly typescript: TypeScriptConfig | undefined;
+	readonly go: GoConfig | undefined;
 	readonly lint: LintConfig;
 };
 
-export type { LatticeConfig, LintConfig, PythonConfig, TypeScriptConfig };
+export type { GoConfig, LatticeConfig, LintConfig, PythonConfig, TypeScriptConfig };
