@@ -1,0 +1,12 @@
+[project]
+languages = ["typescript"]
+root = "src"
+exclude = ["node_modules", "venv", ".git", "dist", "__pycache__", ".lattice"]
+
+[typescript]
+source_roots = ["src"]
+test_paths = ["tests"]
+
+[lint]
+strict = false
+ignore = []

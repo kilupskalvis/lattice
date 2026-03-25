@@ -7,14 +7,13 @@
       "dependencies": {
         "commander": "^14.0.3",
         "smol-toml": "^1.6.0",
+        "typescript": "^5",
+        "typescript-language-server": "^4",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.4.8",
         "@types/bun": "latest",
         "lefthook": "^2.1.4",
-      },
-      "peerDependencies": {
-        "typescript": "^5",
       },
     },
   },
@@ -70,6 +69,8 @@
     "smol-toml": ["smol-toml@1.6.0", "", {}, "sha512-4zemZi0HvTnYwLfrpk/CF9LOd9Lt87kAt50GnqhMpyF9U3poDAP2+iukq2bZsO/ufegbYehBkqINbsWxj4l4cw=="],
 
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "typescript-language-server": ["typescript-language-server@4.4.1", "", { "bin": { "typescript-language-server": "lib/cli.mjs" } }, "sha512-vEvDw+cjY75afMN2rhx0z8sQtFDAUHoBniksBmB6NUZlDt0rEIwQq01VMiqyXFm9uZwcED2475cmDeXxoDHleg=="],
 
     "undici-types": ["undici-types@7.18.2", "", {}, "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w=="],
   }
