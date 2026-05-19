@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { err, ok, type Result } from "../types/result.ts";
 
@@ -25,6 +25,17 @@ function executeInit(projectRoot: string): Result<string, string> {
 			const root = detectRoot(projectRoot);
 			const toml = generateToml(languages, root);
 			writeFileSync(tomlPath, toml);
+		}
+
+		// Append Lattice section to CLAUDE.md (skip if already present)
+		const claudeDir = join(projectRoot, ".claude");
+		const claudeMdPath = join(claudeDir, "CLAUDE.md");
+		mkdirSync(claudeDir, { recursive: true });
+		const existing = existsSync(claudeMdPath) ? readFileSync(claudeMdPath, "utf-8") : "";
+		if (!existing.includes("## Code Navigation")) {
+			const snippet = generateClaudeSnippet(languages);
+			const separator = existing.length > 0 && !existing.endsWith("\n\n") ? "\n\n" : "";
+			appendFileSync(claudeMdPath, `${separator}${snippet}`);
 		}
 
 		// Check LSP server availability
@@ -111,4 +122,135 @@ function checkLspAvailability(languages: readonly string[]): readonly string[] {
 	return warnings;
 }
 
-export { executeInit };
+const PYTHON_EXAMPLE = `\`\`\`bash
+# 1. Orient: what flows exist?
+lattice overview
+
+# 2. Locate: find the relevant flow
+lattice flow user-registration
+
+# Output:
+# register (app/auth/routes.py:45)
+#   → validate_input (app/auth/validation.py:12)
+#   → create_user (app/auth/service.py:30)
+#     → hash_password (app/auth/crypto.py:8)
+#     → insert_user (app/storage/postgres.py:55) [postgres]
+#   → send_welcome_email (app/notifications/email.py:20) [sendgrid]
+
+# 3. Understand: zoom into the function you suspect
+lattice context create_user
+
+# 4. Scope: check what breaks if you change it
+lattice impact create_user
+
+# 5. Read: get just that function's source
+lattice code create_user
+
+# 6. Edit: use Read/Edit tools on app/auth/service.py:30
+\`\`\`
+
+### Symbol format
+
+Unique names work directly. Ambiguous names need file qualification.
+
+\`\`\`bash
+lattice context create_user                       # unique name
+lattice context app/auth/service.py::create_user  # file::function
+lattice context app/models.py::User.save          # file::Class.method
+\`\`\``;
+
+const TYPESCRIPT_EXAMPLE = `\`\`\`bash
+# 1. Orient: what flows exist?
+lattice overview
+
+# 2. Locate: find the relevant flow
+lattice flow checkout
+
+# Output:
+# handleCheckout (src/api/checkout.ts:25)
+#   → validateCart (src/cart/validation.ts:12)
+#   → createOrder (src/orders/service.ts:40)
+#     → insertOrder (src/db/orders.ts:18) [postgres]
+#     → chargePayment (src/payments/stripe.ts:30) [stripe]
+#   → sendConfirmation (src/notifications/email.ts:55) [sendgrid]
+
+# 3. Understand: zoom into the function you suspect
+lattice context createOrder
+
+# 4. Scope: check what breaks if you change it
+lattice impact createOrder
+
+# 5. Read: get just that function's source
+lattice code createOrder
+
+# 6. Edit: use Read/Edit tools on src/orders/service.ts:40
+\`\`\`
+
+### Symbol format
+
+Unique names work directly. Ambiguous names need file qualification.
+
+\`\`\`bash
+lattice context createOrder                          # unique name
+lattice context src/orders/service.ts::createOrder   # file::function
+\`\`\``;
+
+const GO_EXAMPLE = `\`\`\`bash
+# 1. Orient: what flows exist?
+lattice overview
+
+# 2. Locate: find the relevant flow
+lattice flow create-order
+
+# Output:
+# HandleCreateOrder (internal/api/orders.go:35)
+#   → ValidateRequest (internal/api/validation.go:20)
+#   → CreateOrder (internal/service/orders.go:45)
+#     → InsertOrder (internal/repo/orders.go:28) [postgres]
+#     → PublishEvent (internal/events/publisher.go:15) [nats]
+
+# 3. Understand: zoom into the function you suspect
+lattice context CreateOrder
+
+# 4. Scope: check what breaks if you change it
+lattice impact CreateOrder
+
+# 5. Read: get just that function's source
+lattice code CreateOrder
+
+# 6. Edit: use Read/Edit tools on internal/service/orders.go:45
+\`\`\`
+
+### Symbol format
+
+Unique names work directly. Ambiguous names need file qualification.
+
+\`\`\`bash
+lattice context CreateOrder                                # unique name
+lattice context internal/service/orders.go::CreateOrder    # file::function
+lattice context internal/api/server.go::Server.Handle      # file::Struct.Method
+\`\`\``;
+
+/** Generates a CLAUDE.md snippet with language-appropriate few-shot examples. */
+function generateClaudeSnippet(languages: readonly string[]): string {
+	const primary = languages[0] ?? "typescript";
+	const example =
+		primary === "python" ? PYTHON_EXAMPLE : primary === "go" ? GO_EXAMPLE : TYPESCRIPT_EXAMPLE;
+
+	return `## Code Navigation
+
+This project uses **Lattice** for codebase navigation. Use Lattice before reading files or Grep.
+
+### Example: full workflow
+
+${example}
+
+### After code changes
+
+\`\`\`bash
+lattice update
+\`\`\`
+`;
+}
+
+export { executeInit, generateClaudeSnippet };
