@@ -5,7 +5,7 @@ import { discoverFiles } from "../files.ts";
 import { checkSchemaVersion } from "../graph/database.ts";
 import type { LatticeConfig } from "../types/config.ts";
 import { isOk, ok, type Result } from "../types/result.ts";
-import { executeBuild } from "./build.ts";
+import { buildLanguageConfigs, executeBuild } from "./build.ts";
 
 /** Statistics from an incremental update. */
 type UpdateStats = {
@@ -58,13 +58,14 @@ async function executeUpdate(
 	}
 	const lastBuild = Number.parseInt(metaRow.value, 10);
 
-	// Discover files
-	const extensions = [".ts", ".tsx"];
-	const sourceRoots = config.typescript?.sourceRoots ?? [config.root];
+	// Discover files across all configured languages
+	const languageConfigs = buildLanguageConfigs(config);
 	const allFiles: string[] = [];
-	for (const srcRoot of sourceRoots) {
-		const absRoot = resolve(projectRoot, srcRoot);
-		allFiles.push(...discoverFiles(absRoot, extensions, config.exclude));
+	for (const lang of languageConfigs) {
+		for (const srcRoot of lang.sourceRoots) {
+			const absRoot = resolve(projectRoot, srcRoot);
+			allFiles.push(...discoverFiles(absRoot, lang.extensions, config.exclude));
+		}
 	}
 
 	// Find changed files

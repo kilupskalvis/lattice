@@ -82,4 +82,4 @@ function buildLanguageConfigs(config: LatticeConfig): readonly LanguageConfig[] 
 	return configs;
 }
 
-export { executeBuild };
+export { buildLanguageConfigs, executeBuild };
