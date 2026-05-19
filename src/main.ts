@@ -269,17 +269,14 @@ program
 		const nodes = resolveSymbol(db, symbol);
 
 		if (nodes.length === 0) {
+			printUnknownSymbolError(db, symbol);
 			db.close();
-			console.log(`Unknown symbol: ${symbol}`);
 			process.exit(1);
 		}
 
 		if (nodes.length > 1) {
+			printAmbiguousSymbolError(nodes);
 			db.close();
-			console.log("Ambiguous symbol. Matches:");
-			for (const n of nodes) {
-				console.log(`  ${n.id}`);
-			}
 			process.exit(1);
 		}
 
@@ -459,15 +456,12 @@ function resolveOne(db: Database, symbol: string): Node {
 	const nodes = resolveSymbol(db, symbol);
 	if (nodes.length === 0) {
 		db.close();
-		console.error(`Unknown symbol: ${symbol}`);
+		printUnknownSymbolError(db, symbol);
 		process.exit(1);
 	}
 	if (nodes.length > 1) {
 		db.close();
-		console.error("Ambiguous symbol. Matches:");
-		for (const n of nodes) {
-			console.error(`  ${n.id}`);
-		}
+		printAmbiguousSymbolError(nodes);
 		process.exit(1);
 	}
 	const node = nodes[0];
@@ -477,6 +471,41 @@ function resolveOne(db: Database, symbol: string): Node {
 		process.exit(1);
 	}
 	return node;
+}
+
+function printUnknownSymbolError(db: Database, symbol: string): void {
+	console.error(`Unknown symbol: ${symbol}\n`);
+	console.error("Symbol format:");
+	console.error("  function_name                      unique name (if unambiguous)");
+	console.error("  src/file.ts::functionName           file::function");
+	console.error("  src/file.py::Class.method           file::Class.method\n");
+
+	const similar = findSimilarSymbols(db, symbol);
+	if (similar.length > 0) {
+		console.error("Did you mean:");
+		for (const s of similar) {
+			console.error(`  ${s}`);
+		}
+	}
+}
+
+function printAmbiguousSymbolError(nodes: readonly Node[]): void {
+	console.error("Ambiguous symbol. Qualify with file path:\n");
+	for (const n of nodes) {
+		console.error(`  lattice context ${n.id}`);
+	}
+}
+
+function findSimilarSymbols(db: Database, symbol: string): readonly string[] {
+	const lower = symbol.toLowerCase();
+	const parts = lower.split(".");
+	const name = parts[parts.length - 1] ?? lower;
+
+	const rows = db
+		.query("SELECT id, name FROM nodes WHERE LOWER(name) LIKE ? LIMIT 5")
+		.all(`%${name}%`) as { id: string; name: string }[];
+
+	return rows.map((r) => r.id);
 }
 
 /** Builds a flow tree by recursively following call edges from a root node. */
