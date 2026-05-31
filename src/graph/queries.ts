@@ -132,7 +132,7 @@ function getCallees(db: Database, nodeId: string): readonly Node[] {
 
 /**
  * Returns all transitive callers of a node (upstream traversal).
- * Used for impact analysis — "what is affected if I change this?"
+ * Used for impact analysis - "what is affected if I change this?"
  *
  * @param db - An open Database handle
  * @param nodeId - The full node ID to analyze

@@ -77,7 +77,7 @@ function detectLanguages(projectRoot: string): readonly string[] {
 	return languages;
 }
 
-/** Detects the source root — uses "src" if it exists, otherwise ".". */
+/** Detects the source root - uses "src" if it exists, otherwise ".". */
 function detectRoot(projectRoot: string): string {
 	const srcPath = `${projectRoot}/src`;
 	try {

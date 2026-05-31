@@ -4,7 +4,7 @@ import type { LintIssue, LintResult } from "../types/lint.ts";
 
 /**
  * Runs all lint checks against the built knowledge graph.
- * Does not modify the database — reports only.
+ * Does not modify the database - reports only.
  *
  * @param db - An open Database handle (readonly)
  * @param config - Lattice configuration
@@ -51,7 +51,7 @@ function checkInvalidTags(db: Database, issues: LintIssue[]): void {
 			file: row.file,
 			line: row.line_start,
 			symbol: row.name,
-			message: `@lattice:${row.tag_kind} tag on a ${row.node_kind} — tags should only be on functions or methods`,
+			message: `@lattice:${row.tag_kind} tag on a ${row.node_kind} - tags should only be on functions or methods`,
 		});
 	}
 }
@@ -66,7 +66,7 @@ function checkTypos(db: Database, issues: LintIssue[]): void {
 	const commons = tagCounts.filter((t) => t.cnt > 1);
 
 	for (const single of singletons) {
-		// Require longer names for typo detection — short names like "s3" and "sqs" are distinct
+		// Require longer names for typo detection - short names like "s3" and "sqs" are distinct
 		const minLength = 4;
 		if (single.value.length < minLength) continue;
 
@@ -95,7 +95,7 @@ function checkTypos(db: Database, issues: LintIssue[]): void {
 					file: tagNode.file,
 					line: tagNode.line_start,
 					symbol: tagNode.name,
-					message: `@lattice:${single.kind} "${single.value}" — did you mean "${bestMatch.value}"? (used ${bestMatch.cnt} times elsewhere)`,
+					message: `@lattice:${single.kind} "${single.value}" - did you mean "${bestMatch.value}"? (used ${bestMatch.cnt} times elsewhere)`,
 				});
 			}
 		}
@@ -119,7 +119,7 @@ function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
 			file: row.file,
 			line: row.line_start,
 			symbol: row.name,
-			message: `@lattice:emits "${row.value}" has no handler — no @lattice:handles "${row.value}" found`,
+			message: `@lattice:emits "${row.value}" has no handler - no @lattice:handles "${row.value}" found`,
 		});
 	}
 
@@ -138,7 +138,7 @@ function checkOrphanedEvents(db: Database, issues: LintIssue[]): void {
 			file: row.file,
 			line: row.line_start,
 			symbol: row.name,
-			message: `@lattice:handles "${row.value}" has no emitter — no @lattice:emits "${row.value}" found`,
+			message: `@lattice:handles "${row.value}" has no emitter - no @lattice:emits "${row.value}" found`,
 		});
 	}
 }
@@ -178,7 +178,7 @@ function checkStaleBoundaryTags(db: Database, issues: LintIssue[]): void {
 				file: tag.file,
 				line: tag.line_start,
 				symbol: tag.name,
-				message: `@lattice:boundary "${tag.value}" may be stale — no external calls found in this function`,
+				message: `@lattice:boundary "${tag.value}" may be stale - no external calls found in this function`,
 			});
 		}
 	}
@@ -217,7 +217,7 @@ function checkMissingBoundaryTags(db: Database, issues: LintIssue[]): void {
 }
 
 /**
- * Checks for flow entry points with zero callees — the flow tree is just the root node.
+ * Checks for flow entry points with zero callees - the flow tree is just the root node.
  * This typically indicates dynamic dispatch, decorated functions, or missing event connections.
  */
 function checkDeadEndFlows(db: Database, issues: LintIssue[]): void {
@@ -246,7 +246,7 @@ function checkDeadEndFlows(db: Database, issues: LintIssue[]): void {
 				file: entry.file,
 				line: entry.line_start,
 				symbol: entry.name,
-				message: `Flow "${entry.flow_name}" entry point has no callees — the call tree may be incomplete. If this function dispatches through a queue or dynamic dispatch, add @lattice:emits/@lattice:handles tags.`,
+				message: `Flow "${entry.flow_name}" entry point has no callees - the call tree may be incomplete. If this function dispatches through a queue or dynamic dispatch, add @lattice:emits/@lattice:handles tags.`,
 			});
 		}
 	}

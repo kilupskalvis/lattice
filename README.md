@@ -19,16 +19,16 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>
 
-Lattice builds a knowledge graph of your codebase that coding agents query instead of grep and file reading. Agents get precise, scoped context — a flow's call tree, a function's callers, the impact of a change — in minimal tokens. No more reading entire files to understand three functions.
+Lattice builds a knowledge graph of your codebase that coding agents query instead of grep and file reading. Agents get precise, scoped context - a flow's call tree, a function's callers, the impact of a change - in minimal tokens. No more reading entire files to understand three functions.
 
 ## The Problem
 
 Coding agents today dump raw source code into their context windows. They grep for keywords, read whole files, and hope the relevant code is somewhere in the noise. This causes:
 
-- **Context rot** — stale file contents from earlier exploration steps degrade attention
-- **Token waste** — reading 500-line files to understand 20-line functions
-- **Terminology mismatch** — searching "checkout timeout" fails when the code calls it `chargeCard`
-- **Cold start** — every conversation starts from zero with no understanding of the codebase
+- **Context rot** - stale file contents from earlier exploration steps degrade attention
+- **Token waste** - reading 500-line files to understand 20-line functions
+- **Terminology mismatch** - searching "checkout timeout" fails when the code calls it `chargeCard`
+- **Cold start** - every conversation starts from zero with no understanding of the codebase
 
 ## The Solution
 
@@ -103,7 +103,7 @@ lattice code charge                 # read just the function source to edit
 
 ## Tags
 
-Lattice uses four tags placed in comments directly above function definitions. Tags capture what the AST cannot — business flow entry points, external system boundaries, and invisible runtime connections.
+Lattice uses four tags placed in comments directly above function definitions. Tags capture what the AST cannot - business flow entry points, external system boundaries, and invisible runtime connections.
 
 | Tag | Purpose | Example |
 |-----|---------|---------|
@@ -114,7 +114,7 @@ Lattice uses four tags placed in comments directly above function definitions. T
 
 **What you tag:** Route handlers, CLI commands, cron jobs, external API calls, database operations, event publishers, event consumers.
 
-**What you don't tag:** Everything else. Intermediate functions, callers, callees, types — all derived automatically from the call graph.
+**What you don't tag:** Everything else. Intermediate functions, callers, callees, types - all derived automatically from the call graph.
 
 ### Syntax rules
 
@@ -137,7 +137,7 @@ FLOW: checkout
                                    send_confirmation
 ```
 
-`create_order`, `charge`, `save_order` — none of these need tags. Their flow membership is derived.
+`create_order`, `charge`, `save_order` - none of these need tags. Their flow membership is derived.
 
 ### Async job dispatch patterns
 
@@ -162,11 +162,11 @@ def process_ingest_vacancies(data, services):
 
 With these tags, `lattice flow ingest-vacancies` shows the complete chain from the API route through the queue to the worker, including normalization and indexing. Without the `emits`/`handles` tags, the flow tree stops at the queue submission.
 
-**Key rule:** Worker handlers, Lambda consumers, and background job processors are NOT separate flows — they are the receiving side of an async dispatch. Tag them with `@lattice:handles`, not `@lattice:flow`.
+**Key rule:** Worker handlers, Lambda consumers, and background job processors are NOT separate flows - they are the receiving side of an async dispatch. Tag them with `@lattice:handles`, not `@lattice:flow`.
 
 ### Tags and protocols/interfaces
 
-When using dependency injection or protocol-based dispatch, place `emits` tags on the function that the flow actually passes through — not on a concrete implementation behind an interface:
+When using dependency injection or protocol-based dispatch, place `emits` tags on the function that the flow actually passes through - not on a concrete implementation behind an interface:
 
 ```python
 # Good: tag is on the function the flow reaches
@@ -271,11 +271,11 @@ Affected flows: checkout
 
 Instead of grepping and reading files, an agent using Lattice follows this flow:
 
-1. **Orient** — `lattice overview` to understand the project landscape
-2. **Locate** — `lattice flow <name>` to see the relevant call tree
-3. **Understand** — `lattice context <symbol>` for a specific function's neighborhood
-4. **Scope** — `lattice impact <symbol>` to know what's affected by a change
-5. **Edit** — `lattice code <symbol>` to read only the function being modified
+1. **Orient** - `lattice overview` to understand the project landscape
+2. **Locate** - `lattice flow <name>` to see the relevant call tree
+3. **Understand** - `lattice context <symbol>` for a specific function's neighborhood
+4. **Scope** - `lattice impact <symbol>` to know what's affected by a change
+5. **Edit** - `lattice code <symbol>` to read only the function being modified
 
 Total context consumed: ~200-500 tokens instead of 5,000-50,000 from reading files.
 
@@ -303,22 +303,22 @@ lattice lint --unresolved           # show unresolved reference details
 ```
 
 The linter detects:
-- **Missing tags** — route handlers without `@lattice:flow`, external calls without `@lattice:boundary`
-- **Invalid tags** — tags on classes instead of functions, missing values
-- **Typos** — `@lattice:flow chekout` when `checkout` exists elsewhere
-- **Orphaned events** — emits without handlers, handlers without emitters
-- **Stale tags** — boundary tags on functions that no longer call the package
+- **Missing tags** - route handlers without `@lattice:flow`, external calls without `@lattice:boundary`
+- **Invalid tags** - tags on classes instead of functions, missing values
+- **Typos** - `@lattice:flow chekout` when `checkout` exists elsewhere
+- **Orphaned events** - emits without handlers, handlers without emitters
+- **Stale tags** - boundary tags on functions that no longer call the package
 
 ## How It Works
 
 1. **LSP servers** (`typescript-language-server` for TypeScript, `zubanls` for Python) provide type-checked symbol and call information
-2. **Combined edge strategies** — both `outgoingCalls` and `references` are used to maximize edge coverage across files
+2. **Combined edge strategies** - both `outgoingCalls` and `references` are used to maximize edge coverage across files
 3. **Tag scanner** reads `@lattice:` comments and associates them with the function below
 4. **Graph builder** inserts everything into a SQLite database with nodes, edges, and tags
 5. **Event synthesis** creates invisible edges from `@lattice:emits` to `@lattice:handles` nodes, connecting async flows
 6. **CLI queries** traverse the graph and return compact, scoped results
 
-The graph is stored at `.lattice/graph.db` — a single SQLite file.
+The graph is stored at `.lattice/graph.db` - a single SQLite file.
 
 ## Configuration
 
@@ -408,7 +408,7 @@ lattice build && lattice lint   # after adding/changing tags
 }
 ```
 
-The hooks remind the agent to try Lattice before falling back to traditional tools. They don't block — they guide.
+The hooks remind the agent to try Lattice before falling back to traditional tools. They don't block - they guide.
 
 ## Requirements
 

@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { scanTags } from "../extract/tag-scanner.ts";
 import { discoverFiles } from "../files.ts";
@@ -40,7 +40,7 @@ type BuildStats = {
 	readonly durationMs: number;
 };
 
-const VENDOR_VENV = join(import.meta.dir, "..", "..", "vendor", "venv");
+const LATTICE_HOME = join(process.env.HOME ?? process.env.USERPROFILE ?? ".", ".lattice");
 
 const LANGUAGE_EXTENSIONS: Record<string, readonly string[]> = {
 	typescript: [".ts", ".tsx"],
@@ -65,9 +65,9 @@ function resolveLspServer(
 		return { command, args: ["--stdio"], languageId: "typescript" };
 	}
 	if (language === "python") {
-		const zubanls = resolveZuban();
-		if (!zubanls) return undefined;
-		return { command: zubanls, args: [], languageId: "python" };
+		const zuban = resolveZuban();
+		if (!zuban) return undefined;
+		return { command: zuban, args: ["server"], languageId: "python" };
 	}
 	if (language === "go") {
 		const goplsBin = resolveGopls();
@@ -77,65 +77,86 @@ function resolveLspServer(
 	return undefined;
 }
 
-/** Finds or installs zubanls. Returns the binary path, or undefined if installation fails. */
+/** Finds or installs zuban. Returns the binary path, or undefined if installation fails. */
 function resolveZuban(): string | undefined {
 	const isWindows = process.platform === "win32";
 	const binDir = isWindows ? "Scripts" : "bin";
-	const binName = isWindows ? "zubanls.exe" : "zubanls";
+	const binName = isWindows ? "zuban.exe" : "zuban";
+	const venvPath = join(LATTICE_HOME, "venv");
 
-	// 1. Check vendored venv (installed by a previous build)
-	const vendored = join(VENDOR_VENV, binDir, binName);
+	const vendored = join(venvPath, binDir, binName);
 	if (existsSync(vendored)) return vendored;
 
-	// 2. Check system PATH
-	const system = Bun.which("zubanls");
+	const system = Bun.which("zuban");
 	if (system) return system;
 
-	// 3. Auto-install into vendored venv
 	return installZuban();
 }
 
-/** Creates a venv and pip-installs zuban. Returns zubanls path or undefined on failure. */
+/** Installs zuban into ~/.lattice/venv. Tries uv first, falls back to pip. */
 function installZuban(): string | undefined {
 	const isWindows = process.platform === "win32";
 	const binDir = isWindows ? "Scripts" : "bin";
-	const binName = isWindows ? "zubanls.exe" : "zubanls";
+	const binName = isWindows ? "zuban.exe" : "zuban";
+	const venvPath = join(LATTICE_HOME, "venv");
 
-	const python = Bun.which("python3") ?? Bun.which("python");
-	if (!python) {
-		console.error("Python not found. Install Python 3 to enable Python support.");
-		return undefined;
-	}
+	mkdirSync(LATTICE_HOME, { recursive: true });
 
 	console.log("Installing Python language server (zuban)...");
 
-	const venvResult = Bun.spawnSync([python, "-m", "venv", VENDOR_VENV], {
-		stdout: "ignore",
-		stderr: "pipe",
-	});
-	if (venvResult.exitCode !== 0) {
-		console.error(`Failed to create venv: ${venvResult.stderr.toString()}`);
-		return undefined;
+	const uv = Bun.which("uv");
+	if (uv) {
+		const result = Bun.spawnSync([uv, "venv", venvPath], {
+			stdout: "ignore",
+			stderr: "pipe",
+		});
+		if (result.exitCode !== 0) {
+			console.error(`Failed to create venv: ${result.stderr.toString()}`);
+			return undefined;
+		}
+		const uvPip = Bun.spawnSync(
+			[uv, "pip", "install", "zuban", "--python", join(venvPath, binDir, "python3")],
+			{ stdout: "ignore", stderr: "pipe" },
+		);
+		if (uvPip.exitCode !== 0) {
+			console.error(`Failed to install zuban: ${uvPip.stderr.toString()}`);
+			return undefined;
+		}
+	} else {
+		const python = Bun.which("python3") ?? Bun.which("python");
+		if (!python) {
+			console.error("Python not found. Install Python 3 or uv to enable Python support.");
+			return undefined;
+		}
+
+		const venvResult = Bun.spawnSync([python, "-m", "venv", venvPath], {
+			stdout: "ignore",
+			stderr: "pipe",
+		});
+		if (venvResult.exitCode !== 0) {
+			console.error(`Failed to create venv: ${venvResult.stderr.toString()}`);
+			return undefined;
+		}
+
+		const pip = join(venvPath, binDir, isWindows ? "pip.exe" : "pip");
+		const pipResult = Bun.spawnSync([pip, "install", "zuban", "--quiet"], {
+			stdout: "ignore",
+			stderr: "pipe",
+		});
+		if (pipResult.exitCode !== 0) {
+			console.error(`Failed to install zuban: ${pipResult.stderr.toString()}`);
+			return undefined;
+		}
 	}
 
-	const pip = join(VENDOR_VENV, binDir, isWindows ? "pip.exe" : "pip");
-	const pipResult = Bun.spawnSync([pip, "install", "zuban", "--quiet"], {
-		stdout: "ignore",
-		stderr: "pipe",
-	});
-	if (pipResult.exitCode !== 0) {
-		console.error(`Failed to install zuban: ${pipResult.stderr.toString()}`);
-		return undefined;
-	}
-
-	const zubanls = join(VENDOR_VENV, binDir, binName);
-	if (!existsSync(zubanls)) {
-		console.error("zubanls not found after installation");
+	const zuban = join(venvPath, binDir, binName);
+	if (!existsSync(zuban)) {
+		console.error("zuban not found after installation");
 		return undefined;
 	}
 
 	console.log("done");
-	return zubanls;
+	return zuban;
 }
 
 /** Resolves gopls binary path from GOBIN or GOPATH/bin. */
@@ -264,7 +285,7 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 				fileDataList.push({ filePath, relativePath, nodesWithPos });
 			}
 
-			// Phase 2a: outgoingCalls — gopls doesn't support this over stdio, so skip for Go
+			// Phase 2a: outgoingCalls - gopls doesn't support this over stdio, so skip for Go
 			if (langConfig.language !== "go")
 				for (const fd of fileDataList) {
 					for (const nwp of fd.nodesWithPos) {
@@ -290,12 +311,12 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 							allEdges.push(...edges);
 							allExternalCalls.push(...externalCalls);
 						} catch {
-							// outgoingCalls not supported by this server — skip silently
+							// outgoingCalls not supported by this server - skip silently
 						}
 					}
 				}
 
-			// Phase 2b: references — "who references each function?"
+			// Phase 2b: references - "who references each function?"
 			const nodesByFile = new Map<string, readonly Node[]>();
 			for (const fd of fileDataList) {
 				nodesByFile.set(
@@ -335,7 +356,7 @@ async function buildGraph(opts: BuildGraphOptions): Promise<BuildStats> {
 							allEdges.push({ sourceId: caller.id, targetId: nwp.node.id, kind: "calls" });
 						}
 					} catch {
-						// references not supported by this server — skip silently
+						// references not supported by this server - skip silently
 					}
 				}
 			}

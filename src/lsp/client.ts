@@ -81,7 +81,7 @@ async function createLspClient(opts: LspClientOptions): Promise<LspClient> {
 			try {
 				const msg = JSON.parse(body) as JsonRpcMessage;
 				if (msg.method && msg.id !== undefined) {
-					// Server-initiated request — reply with null to unblock the server
+					// Server-initiated request - reply with null to unblock the server
 					const reply = JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: null });
 					const replyHeader = `Content-Length: ${Buffer.byteLength(reply)}\r\n\r\n`;
 					proc.stdin?.write(replyHeader + reply);

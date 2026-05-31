@@ -99,7 +99,7 @@ function extractGoModuleName(uri: string): string | undefined {
 /**
  * Checks if a URI points to a type-only package (not a runtime dependency).
  * Type definition packages (@types/*, typescript, bun-types) are filtered out.
- * Actual library .d.ts stubs (e.g., stripe/index.d.ts) are kept — they represent runtime deps.
+ * Actual library .d.ts stubs (e.g., stripe/index.d.ts) are kept - they represent runtime deps.
  */
 function isTypeDeclaration(uri: string): boolean {
 	// TypeScript type-only packages

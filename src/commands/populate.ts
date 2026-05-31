@@ -22,38 +22,38 @@ function executePopulate(db: Database, _config: LatticeConfig): string {
 	return sections.join("\n\n");
 }
 
-/** Outputs the tag spec — what each tag means and the syntax rules. */
+/** Outputs the tag spec - what each tag means and the syntax rules. */
 function tagSpecSection(): string {
 	return `## Lattice Tag Specification
 
 Four tags, placed in comments directly above function definitions:
 
-- \`@lattice:flow <name>\` — Flow entry point. Where execution begins for a business operation. Route handlers, CLI commands, cron jobs, queue consumers.
-- \`@lattice:boundary <system>\` — External boundary. Where code leaves the codebase. API calls, database queries, cache operations, third-party SDKs.
-- \`@lattice:emits <event>\` — Event emission. Publishes to a queue, event bus, or notification system.
-- \`@lattice:handles <event>\` — Event consumption. Subscribes to or processes events. Must match a corresponding emits tag.
+- \`@lattice:flow <name>\` - Flow entry point. Where execution begins for a business operation. Route handlers, CLI commands, cron jobs, queue consumers.
+- \`@lattice:boundary <system>\` - External boundary. Where code leaves the codebase. API calls, database queries, cache operations, third-party SDKs.
+- \`@lattice:emits <event>\` - Event emission. Publishes to a queue, event bus, or notification system.
+- \`@lattice:handles <event>\` - Event consumption. Subscribes to or processes events. Must match a corresponding emits tag.
 
 Rules:
 - Place the tag comment directly above the function definition, no blank lines between
 - Names are kebab-case: \`checkout\`, \`user-registration\`, \`order.created\`, \`aws-s3\`
 - Multiple values: \`# @lattice:flow checkout, payment\`
-- Do NOT tag intermediate functions — only entry points and boundaries. Everything in between is derived from the call graph automatically.`;
+- Do NOT tag intermediate functions - only entry points and boundaries. Everything in between is derived from the call graph automatically.`;
 }
 
 /** Few-shot examples showing correct tagging across different scenarios. */
 function examplesSection(): string {
 	return `## Examples
 
-### Python — FastAPI route with boundary and events
+### Python - FastAPI route with boundary and events
 
 \`\`\`python
 # @lattice:flow checkout
 @app.post("/api/checkout")
 def handle_checkout(req):
-    order = create_order(req)       # no tag — derived from call graph
+    order = create_order(req)       # no tag - derived from call graph
     return order
 
-def create_order(req):              # no tag — derived from call graph
+def create_order(req):              # no tag - derived from call graph
     charge(req.amount, req.token)
     save_order(req)
     emit_order_created(req.order_id)
@@ -75,7 +75,7 @@ def send_confirmation(event):
     sendgrid.send(event.order_id)
 \`\`\`
 
-### TypeScript — Express route with database boundary
+### TypeScript - Express route with database boundary
 
 \`\`\`typescript
 // @lattice:flow user-registration
@@ -90,7 +90,7 @@ async function createUser(data: CreateUserInput): Promise<User> {
 }
 \`\`\`
 
-### Python — Celery task as entry point
+### Python - Celery task as entry point
 
 \`\`\`python
 # @lattice:flow invoice-generation
@@ -108,7 +108,7 @@ def render_invoice(order):
 \`\`\``;
 }
 
-/** Brief project summary from the graph — just enough context, not a file listing. */
+/** Brief project summary from the graph - just enough context, not a file listing. */
 function projectSummarySection(db: Database): string {
 	const lines: string[] = ["## This Project", ""];
 
@@ -148,15 +148,15 @@ Follow these steps in order. Do not skip validation steps.
 
 ### Step 1: Tag entry points
 
-Read the source files and identify all entry points — route handlers, CLI commands, cron jobs, queue consumers, event listeners. Add \`@lattice:flow <name>\` above each one.
+Read the source files and identify all entry points - route handlers, CLI commands, cron jobs, queue consumers, event listeners. Add \`@lattice:flow <name>\` above each one.
 
-Use domain names for flows: "checkout", "user-registration", "invoice-generation" — not function names.
+Use domain names for flows: "checkout", "user-registration", "invoice-generation" - not function names.
 
 ### Step 2: Tag boundaries
 
-Identify all functions that call external systems — APIs, databases, caches, file storage, third-party SDKs. Add \`@lattice:boundary <system>\` above each one.
+Identify all functions that call external systems - APIs, databases, caches, file storage, third-party SDKs. Add \`@lattice:boundary <system>\` above each one.
 
-Use the external system name: "stripe", "postgres", "redis", "s3" — not the function or library name.
+Use the external system name: "stripe", "postgres", "redis", "s3" - not the function or library name.
 
 ### Step 3: Tag async dispatch (queues, Lambda, Celery)
 
@@ -165,7 +165,7 @@ If the codebase submits work to a queue (SQS, RabbitMQ), invokes Lambda function
 - Add \`@lattice:emits job.<name>\` on the function that submits/invokes the async work
 - Add \`@lattice:handles job.<name>\` on the function that processes the work on the other side
 
-Important: Worker handlers and Lambda consumers are NOT separate flows — they are the receiving side of an async dispatch. Tag them with \`@lattice:handles\`, not \`@lattice:flow\`.
+Important: Worker handlers and Lambda consumers are NOT separate flows - they are the receiving side of an async dispatch. Tag them with \`@lattice:handles\`, not \`@lattice:flow\`.
 
 Place \`emits\` tags on the function the flow actually passes through, not on a concrete implementation behind a protocol or interface.
 

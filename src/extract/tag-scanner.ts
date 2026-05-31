@@ -48,7 +48,7 @@ function scanTags(source: string, nodes: readonly Node[], language?: string): Ta
 		// Skip tags that are inside a function body and point to the SAME function
 		// (these are @lattice: mentions in string literals, not real tags).
 		// Tags between functions (e.g., above a decorated function whose predecessor's
-		// range overlaps) are fine — the target will be a different, later function.
+		// range overlaps) are fine - the target will be a different, later function.
 		const containingNode = candidateNodes.find(
 			(n) => tagLine > n.lineStart && tagLine <= n.lineEnd,
 		);
@@ -75,7 +75,7 @@ function scanTags(source: string, nodes: readonly Node[], language?: string): Ta
 
 		for (const value of values) {
 			if (!NAME_PATTERN.test(value)) {
-				errors.push(`Line ${tagLine}: invalid tag name '${value}' — must be lowercase kebab-case`);
+				errors.push(`Line ${tagLine}: invalid tag name '${value}' - must be lowercase kebab-case`);
 				continue;
 			}
 

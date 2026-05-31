@@ -32,7 +32,7 @@ function isErr<T, E>(result: Result<T, E>): result is Err<E> {
 
 /**
  * Extracts the data from an Ok result or throws on Err.
- * Only use at program boundaries — prefer pattern matching elsewhere.
+ * Only use at program boundaries - prefer pattern matching elsewhere.
  *
  * @param result - The result to unwrap
  * @returns The data inside the Ok variant
